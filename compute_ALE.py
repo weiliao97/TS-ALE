@@ -11,11 +11,11 @@ import utils
 import make_optimizer
 import prepare_data
 import models
+import ale 
 import importlib
 importlib.reload(utils)
 import torch.nn as nn
 from sklearn.model_selection import KFold
-
 from plot_metric.functions import BinaryClassification
 import sklearn.metrics as metrics
 import matplotlib.pyplot as plt
@@ -143,5 +143,42 @@ if __name__ == "__main__":
     fc_model.eval()
 
     model_c = models.Combined_model(model.network, fc_model)
+
+    # run ale for continous variables
+    mimic_mean_std = pd.read_hdf('/content/drive/MyDrive/ColabNotebooks/MIMIC/Extract/MEEP/Extracted_sep_2022/0910/MEEP_stats_MIMIC.h5')
+    col_means, col_stds = mimic_mean_std.loc[:, 'mean'], mimic_mean_std.loc[:, 'std']
+    var_inds = [i for i in range(0, 109, 2)] + [i for i in range(116, 169, 2)]
+    keys = list(col_means.keys())
+    keys_sim = [i[0] for i in keys]
+    ale_df = pd.DataFrame(index=keys_sim)
+    ale_df['ale'] = ''
+    for var_ind in var_inds:
+        ind = var_ind//2 if var_ind <= 108 else (var_ind-6)//2
+        key = keys_sim[ind]
+        max_ale = []
+        quantile_t, ale_t, quantile_nc, ale_nc= ale.get_1d_ale(model_c, test_head, index=var_ind, bins=20, monte_carlo_ratio=0.1, monte_carlo_rep=50, record_flag=1)
+        # ind = 55
+        fig, ax = plt.subplots(figsize=(5, 4))
+        for q, a in zip(quantile_t, ale_t):
+            max_ale.append(np.max(a) - np.min(a))
+            if len(q) > len(a):
+                extra = len(q) - len(a)
+                ax.plot(q[extra:]*col_stds[keys[ind]] + col_means[keys[ind]], a, color="#1f77b4", alpha=0.1)
+            elif len(q) < len(a):
+                extra = len(q) - len(a)
+                ax.plot(q*col_stds[keys[ind]] + col_means[keys[ind]], a[extra:], color="#1f77b4", alpha=0.1)
+            else:
+                ax.plot(q*col_stds[keys[ind]] + col_means[keys[ind]], a, color="#1f77b4", alpha=0.1)
+        # print(key, max_ale)
+        ale_df.loc[key, 'ale'] = np.mean(max_ale)
+        ale_df.loc[key, 'ale_raw'] = max_ale 
+        # ax.axvline(x=3, color = '#b45c1f', linestyle='--')
+        # ax.axvline(x=5, color = '#b45c1f', linestyle='--')
+        ax.set_xlabel('%s'%key, size=18,  fontweight='bold')
+        ax.set_ylabel('Prob ALE', size=18,  fontweight='bold')
+        plt.savefig('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname + '/%s_ale.pdf'%key, format='pdf', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
+    ale_df.to_csv('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname + '/ale.csv')
+    
+
 
 

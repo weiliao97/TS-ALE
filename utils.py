@@ -5,7 +5,6 @@ from torch.autograd import Variable
 import numpy as np 
 import pandas as pd 
 import torch.nn as nn
-import loss_fn
 import models
 import sklearn.metrics as metrics
 # plot cm matrix 
