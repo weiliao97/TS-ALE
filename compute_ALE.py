@@ -113,7 +113,7 @@ if __name__ == "__main__":
     # ethnicity_AMERICAN INDIAN 46 ethnicity_ASIAN 791 ethnicity_BLACK 2359 ethnicity_HISPANIC/LATINO 919 ethnicity_OTHER 4547 ethnicity_WHITE 18474
     args.bucket_size = bucket_sizes[args.sens_ind]
     workname = today_date + '_' + args.database + '_' + target_index[args.sens_ind]
-    utils.creat_checkpoint_folder('./checkpoints/' + workname, 'params.json', arg_dict)
+    utils.creat_checkpoint_folder('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname, 'params.json', arg_dict)
     train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', target_index[args.sens_ind])
     dev_head, dev_sofa, dev_id, dev_target =  utils.crop_data_target(dev_vital , mimic_target, mimic_static, 'dev', target_index[args.sens_ind])
     test_head, test_sofa, test_id, test_target =  utils.crop_data_target(test_vital, mimic_target, mimic_static, 'test', target_index[args.sens_ind])
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     keys_sim = [i[0] for i in keys]
     ale_df = pd.DataFrame(index=keys_sim)
     ale_df['ale'] = ''
-    for var_ind in var_inds:
+    for var_ind in var_inds[:2]:
         ind = var_ind//2 if var_ind <= 108 else (var_ind-6)//2
         key = keys_sim[ind]
         max_ale = []
