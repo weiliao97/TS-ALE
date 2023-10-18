@@ -64,13 +64,13 @@ if __name__ == "__main__":
     parser.add_argument("--read_reluslope", type=float, default=0.1, help="Relu slope in the FC read model")
     parser.add_argument("--read_channels", nargs='+', type = int, help='num of channels in FC read model')
     parser.add_argument("--output_classes", type=int, default=2, help="Which static column to target")
-    parser.add_argument("--sens_index", type=int, default=0, help = "target index to predict")
+    parser.add_argument("--sens_ind", type=int, default=0, help = "target index to predict")
     parser.add_argument("--cal_pos_acc", action = 'store_false', default=True, help="Whethe calculate the acc of the positive class")
 
 
     # model path 
     parser.add_argument("--model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/0125_mimic_TCNsepsis_3_256_ks3/fold0_best_loss.pt')
-    parser.add_argument("--fc_model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/0227_mimic_Transformer_general/fold3_best_loss.pt')
+    parser.add_argument("--fc_model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/0128_mimic_TCN_FC_Ethnicity/fold0_best_loss.pt')
   
 
     args = parser.parse_args()
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     # severe_liver_disease 1189 metastatic_solid_tumor 1749 aids 133
     # ethnicity_AMERICAN INDIAN 46 ethnicity_ASIAN 791 ethnicity_BLACK 2359 ethnicity_HISPANIC/LATINO 919 ethnicity_OTHER 4547 ethnicity_WHITE 18474
     args.bucket_size = bucket_sizes[args.sens_ind]
-    workname = today_date + '_' + args.database + '_' + target_index[args.sens_ind]
+    workname = today_date + '_' + args.database + '_' + target_name[args.sens_ind]
     utils.creat_checkpoint_folder('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname, 'params.json', arg_dict)
     train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', target_index[args.sens_ind])
     dev_head, dev_sofa, dev_id, dev_target =  utils.crop_data_target(dev_vital , mimic_target, mimic_static, 'dev', target_index[args.sens_ind])
@@ -159,8 +159,9 @@ if __name__ == "__main__":
         quantile_t, ale_t, quantile_nc, ale_nc= ale.get_1d_ale(model_c, test_head, index=var_ind, bins=20, monte_carlo_ratio=0.1, monte_carlo_rep=50, record_flag=1)
         # ind = 55
         fig, ax = plt.subplots(figsize=(5, 4))
-        for q, a in zip(quantile_t, ale_t):
+        for i, (q, a) in enumerate(zip(quantile_t, ale_t)):
             max_ale.append(np.max(a) - np.min(a))
+            ale_df.loc[key, 'ale_raw_%d'%i] = np.max(a) - np.min(a)
             if len(q) > len(a):
                 extra = len(q) - len(a)
                 ax.plot(q[extra:]*col_stds[keys[ind]] + col_means[keys[ind]], a, color="#1f77b4", alpha=0.1)
@@ -169,9 +170,10 @@ if __name__ == "__main__":
                 ax.plot(q*col_stds[keys[ind]] + col_means[keys[ind]], a[extra:], color="#1f77b4", alpha=0.1)
             else:
                 ax.plot(q*col_stds[keys[ind]] + col_means[keys[ind]], a, color="#1f77b4", alpha=0.1)
+            
         # print(key, max_ale)
         ale_df.loc[key, 'ale'] = np.mean(max_ale)
-        ale_df.loc[key, 'ale_raw'] = max_ale 
+        
         # ax.axvline(x=3, color = '#b45c1f', linestyle='--')
         # ax.axvline(x=5, color = '#b45c1f', linestyle='--')
         ax.set_xlabel('%s'%key, size=18,  fontweight='bold')
