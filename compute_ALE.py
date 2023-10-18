@@ -89,7 +89,7 @@ if __name__ == "__main__":
     # ethnicity_AMERICAN INDIAN 46 ethnicity_ASIAN 791 ethnicity_BLACK 2359 ethnicity_HISPANIC/LATINO 919 ethnicity_OTHER 4547 ethnicity_WHITE 18474
     # for i in range(2, 3):
     arg_dict['target_index'] = target_index[args.sens_ind]
-    args.bucket_size = bucket_sizes[i]
+    args.bucket_size = bucket_sizes[args.sens_ind]
     workname = date + '_' + args.database + '_' + target_index[args.sens_ind]
     creat_checkpoint_folder('./checkpoints/' + workname, 'params.json', arg_dict)
     train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', target_index[args.sens_ind])
