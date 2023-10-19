@@ -64,7 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("--layer_dim", type=int, default=3, help="RNN layer dim")
     parser.add_argument("--idrop", type=float, default=0, help="RNN drop out in the very beginning")
     ## model to build
-    parser.add_argument("--task_name", type=str, default='ihm', choices=['ihm', 'sofa'])
+    parser.add_argument("--task_name", type=str, default='sofa', choices=['ihm', 'sofa'])
     parser.add_argument("--model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/0125_mimic_TCNsepsis_3_256_ks3/fold0_best_loss.pt')
     # hosp mort general Trans MIMIC/MEEP/checkpoints/0222_mimic_hosp_mort_48h_6h_tran_group0_fold2_best_roc_0.889.pt
     # SOFA sepsis_3 TRANS MIMIC/TCN/checkpoints/0125_mimic_Transformertransformer/fold5_best_loss.pt

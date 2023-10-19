@@ -433,3 +433,58 @@ def zero_col(data_head, cols):
         for row in cols:
             array[row] = 0
     return
+
+def get_evalacc_results(model, test_loader):
+    
+    model.eval()
+    y_list = []
+    y_pred_list = []
+    td_list = []
+    loss_val = []
+    with torch.no_grad():  # validation does not require gradient
+
+        for vitals, target, key_mask in test_loader:
+            # ti_test = Variable(torch.FloatTensor(ti)).to(device)
+            td_test =  Variable(vitals.float().to(device))
+            sofa_t =  Variable(target.long().to(device))
+
+            # tgt_mask_test = model.get_tgt_mask(td_test.shape[-1]).to(device)
+            sofap_t = model(td_test)
+            
+            pred  = torch.stack([sofap_t[i][key_mask[i]==0].mean(dim=-2) for i in range(len(sofa_t))])
+            loss_v = ce_loss(pred, sofa_t.squeeze(-1))
+            
+            y_list.append(sofa_t)
+            y_pred_list.append(pred)
+            loss_val.append(loss_v)
+            td_list.append(td_test)
+
+        loss_te = np.mean(torch.stack(loss_val, dim=0).cpu().detach().numpy())
+        val_acc = cal_acc(y_pred_list, y_list)
+  
+    return y_list, y_pred_list, td_list, loss_te, val_acc
+
+def get_eval_results(model, test_loader):
+    
+    model.eval()
+    y_list = []
+    y_pred_list = []
+    td_list = []
+    loss_val = []
+    with torch.no_grad():  # validation does not require gradient
+
+        for vitals, target, key_mask in test_loader:
+            # ti_test = Variable(torch.FloatTensor(ti)).to(device)
+            td_test = Variable(torch.FloatTensor(vitals)).to(device)
+            sofa_t = Variable(torch.FloatTensor(target)).to(device)
+
+            tgt_mask_test = model.get_tgt_mask(td_test.shape[-1]).to(device)
+            sofap_t = model(td_test, tgt_mask_test, key_mask.to(device))
+            
+            loss_v = loss_fn.mse_maskloss(sofap_t, sofa_t, key_mask.to(device))
+            y_list.append(sofa_t.cpu().detach().numpy())
+            y_pred_list.append(sofap_t.cpu().detach().numpy())
+            loss_val.append(loss_v)
+    loss_te = np.mean(torch.stack(loss_val, dim=0).cpu().detach().numpy())
+
+    return y_list, y_pred_list, td_list, loss_te
