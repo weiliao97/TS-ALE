@@ -412,7 +412,7 @@ def get_auc_ci(y_true, y_pred,  n_bootstraps = 1000, rng_seed = 42):
     for i in range(n_bootstraps):
         # bootstrap by sampling with replacement on the prediction indices
         indices = rng.randint(0, len(y_pred), len(y_pred))
-        score = roc_auc_score(y_true[indices], y_pred[indices])
+        score = roc_auc_score(y_true[indices].squeeze(-1), y_pred[indices][:, 1])
         bootstrapped_scores.append(score)
         # print("Bootstrap #{} ROC area: {:0.3f}".format(i + 1, score))
     sorted_scores = np.array(bootstrapped_scores)
