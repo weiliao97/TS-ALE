@@ -150,6 +150,16 @@ if __name__ == "__main__":
         dev_head_e, dev_sofa_e, dev_id_e, dev_target_e = utils.filter_sepsis_e(dev_head_e, dev_sofa_e, dev_id_e, dev_target_e)
         test_head_e, test_sofa_e, test_id_e, test_target_e = utils.filter_sepsis_e(test_head_e, test_sofa_e, test_id_e, test_target_e)
 
+    ale_001_003 = [60, 10, 76, 116, 28, 24, 44, 122, 22, 70, 86, 94, 42, 154, 82, 162, 54, 92, 150, 50, 146, 148, 102, 160, 64, 34,
+                   4, 134, 156, 96, 72, 126, 16, 2, 70]
+    rows_to_zero = [0, 1, 8, 9, 30, 31, 32, 33, 38, 39, 56, 57, 58, 59, 84, 85, 88, 89, 98, 99, 106, 107] + ale_001_003 + [i+1 for i in ale_001_003]
+    
+    utils.zero_col(train_head, rows_to_zero)
+    utils.zero_col(dev_head, rows_to_zero)
+    utils.zero_col(test_head, rows_to_zero)
+    utils.zero_col(train_head_e, rows_to_zero)
+    utils.zero_col(dev_head_e, rows_to_zero)
+    utils.zero_col(test_head_e, rows_to_zero)
     # get representations
     oc = 1 if args.task_name == 'sofa' else 2
     if args.model_name == 'TCN':
