@@ -464,27 +464,27 @@ def get_evalacc_results(model, test_loader):
   
     return y_list, y_pred_list, td_list, loss_te, val_acc
 
-def get_eval_results(model, test_loader):
+# def get_eval_results(model, test_loader):
     
-    model.eval()
-    y_list = []
-    y_pred_list = []
-    td_list = []
-    loss_val = []
-    with torch.no_grad():  # validation does not require gradient
+#     model.eval()
+#     y_list = []
+#     y_pred_list = []
+#     td_list = []
+#     loss_val = []
+#     with torch.no_grad():  # validation does not require gradient
 
-        for vitals, target, key_mask in test_loader:
-            # ti_test = Variable(torch.FloatTensor(ti)).to(device)
-            td_test = Variable(torch.FloatTensor(vitals)).to(device)
-            sofa_t = Variable(torch.FloatTensor(target)).to(device)
+#         for vitals, target, key_mask in test_loader:
+#             # ti_test = Variable(torch.FloatTensor(ti)).to(device)
+#             td_test = Variable(torch.FloatTensor(vitals)).to(device)
+#             sofa_t = Variable(torch.FloatTensor(target)).to(device)
 
-            tgt_mask_test = model.get_tgt_mask(td_test.shape[-1]).to(device)
-            sofap_t = model(td_test, tgt_mask_test, key_mask.to(device))
+#             tgt_mask_test = model.get_tgt_mask(td_test.shape[-1]).to(device)
+#             sofap_t = model(td_test, tgt_mask_test, key_mask.to(device))
             
-            loss_v = loss_fn.mse_maskloss(sofap_t, sofa_t, key_mask.to(device))
-            y_list.append(sofa_t.cpu().detach().numpy())
-            y_pred_list.append(sofap_t.cpu().detach().numpy())
-            loss_val.append(loss_v)
-    loss_te = np.mean(torch.stack(loss_val, dim=0).cpu().detach().numpy())
+#             loss_v = loss_fn.mse_maskloss(sofap_t, sofa_t, key_mask.to(device))
+#             y_list.append(sofa_t.cpu().detach().numpy())
+#             y_pred_list.append(sofap_t.cpu().detach().numpy())
+#             loss_val.append(loss_v)
+#     loss_te = np.mean(torch.stack(loss_val, dim=0).cpu().detach().numpy())
 
-    return y_list, y_pred_list, td_list, loss_te
+#     return y_list, y_pred_list, td_list, loss_te
