@@ -7,6 +7,7 @@ import pandas as pd
 import torch.nn as nn
 import models
 import sklearn.metrics as metrics
+from sklearn.metrics import roc_auc_score
 # plot cm matrix 
 import matplotlib.pyplot as plt
 import matplotlib
@@ -171,3 +172,264 @@ def filter_sepsis_e(vital, sofa, ids, target):
     sofa_sepsis = [sofa[i] for i in ind]
     target_sepsis = [target[i] for i in ind]
     return vital_sepsis, sofa_sepsis, [ids[i] for i in ind], target_sepsis
+
+def plot_confusion_matrix(y_list, y_pred_list, title='Confusion matrix', label_x=None, label_y=None):
+    """
+    Plot confusion matrix
+    input: y_list: list of true labels
+           y_pred_list: list of predicted labels
+           title: title of the plot
+           label_x: x label of the plot
+           label_y: y label of the plot
+    output: fig: figure of the plot
+    """
+    num_class = y_pred_list[0].shape[-1]
+    y_label = torch.concat(y_list).detach().cpu().numpy()
+    pred_t = torch.concat(y_pred_list)
+    y_pred = torch.argmax(pred_t, dim=-1).unsqueeze(-1).detach().cpu().numpy()
+    
+    cm = metrics.confusion_matrix(y_label, y_pred)
+    cf_matrix = cm/np.repeat(np.expand_dims(np.sum(cm, axis=1), axis=-1), num_class, axis=1)
+    group_counts = ['{0:0.0f}'.format(value) for value in cm.flatten()]
+    # percentage based on true label 
+    gr = (cm/np.repeat(np.expand_dims(np.sum(cm, axis=1), axis=-1), num_class, axis=1)).flatten()
+    group_percentages = ['{0:.2%}'.format(value) for value in gr]
+
+    labels = [f'{v1}\n{v2}' for v1, v2 in zip(group_percentages, group_counts)]
+
+    labels = np.asarray(labels).reshape(num_class, num_class)
+
+    if label_x is not None:
+        xlabel = label_x
+        ylabel = label_y
+    else:
+        xlabel = ['Pred-%d'%i for i in range(num_class)]
+        ylabel = ['%d'%i for i in range(num_class)]
+    
+    sns.set(font_scale = 1.5)
+
+    hm = sns.heatmap(cf_matrix, annot=labels, fmt='', cmap = 'OrRd', \
+    annot_kws={"fontsize": 16}, xticklabels=xlabel, yticklabels=ylabel, cbar=False)
+    hm.set(title=title)
+    fig = plt.gcf()
+    plt.show()
+    return fig 
+
+def plot_confusion_matrix_cpu(y_list, y_pred_list, title='Confusion matrix', label_x=None, label_y=None):
+    num_class = y_pred_list[0].shape[-1]
+    y_pred = np.argmax(y_pred_list, axis=-1)
+    
+    cm = metrics.confusion_matrix(y_list, y_pred)
+    cf_matrix = cm/np.repeat(np.expand_dims(np.sum(cm, axis=1), axis=-1), num_class, axis=1)
+    group_counts = ['{0:0.0f}'.format(value) for value in cm.flatten()]
+    # percentage based on true label 
+    gr = (cm/np.repeat(np.expand_dims(np.sum(cm, axis=1), axis=-1), num_class, axis=1)).flatten()
+    group_percentages = ['{0:.2%}'.format(value) for value in gr]
+
+    labels = [f'{v1}\n{v2}' for v1, v2 in zip(group_percentages, group_counts)]
+
+    labels = np.asarray(labels).reshape(num_class, num_class)
+
+    if label_x is not None:
+        xlabel = label_x
+        ylabel = label_y
+    else:
+        xlabel = ['Pred-%d'%i for i in range(num_class)]
+        ylabel = ['%d'%i for i in range(num_class)]
+    
+    sns.set(font_scale = 1.5)
+
+    hm = sns.heatmap(cf_matrix, annot=labels, fmt='', cmap = 'OrRd', \
+    annot_kws={"fontsize": 16}, xticklabels=xlabel, yticklabels=ylabel, cbar=False)
+    hm.set(title=title)
+    fig = plt.gcf()
+    plt.show()
+    return fig 
+
+# plot_curve
+# from get_evalacc_results
+def plot_auprc(y_list, y_pred_list):
+    binary_label = torch.concat(y_list).detach().cpu().numpy()
+    binary_outputs = softmax(torch.concat(y_pred_list)).detach().cpu().numpy()
+    metrics.PrecisionRecallDisplay.from_predictions(binary_label,  binary_outputs[:, 1])
+
+    no_skill = len(binary_label[binary_label==1]) / len(binary_label)
+    # plot the no skill precision-recall curve
+    plt.plot([0, 1], [no_skill, no_skill], linestyle='--', label='No Skill (AP = %.2f)'%no_skill)
+    plt.legend()
+    fig = plt.gcf()
+    plt.show()
+    return fig
+
+def plot_roc(y_list, y_pred_list):
+    binary_label = torch.concat(y_list).detach().cpu().numpy()
+    binary_outputs = softmax(torch.concat(y_pred_list)).detach().cpu().numpy()
+    metrics.RocCurveDisplay.from_predictions(binary_label,  binary_outputs[:, 1])
+
+    plt.plot([0, 1], [0, 1], linestyle='--', label='No Skill')
+    # no_skill = len(binary_label[binary_label==1]) / len(binary_label)
+    # plot the no skill precision-recall curve
+    # plt.plot([0, 1], [no_skill, no_skill], linestyle='--', label='No Skill (AP = %.2f)'%no_skill)
+    plt.legend()
+    plt.xlabel(xlabel = 'FPR', fontsize=8)
+    plt.ylabel(ylabel = 'TPR', fontsize=8)
+    fig = plt.gcf()
+    plt.show()
+    return fig
+
+def creat_tcn_encode(model, vitals):
+    output_t = []
+    for d in vitals:
+        d_tensor = torch.from_numpy(d).unsqueeze(0).float().to(device)
+        output = model.network(d_tensor)
+        output_t.append(output.squeeze(0).detach().cpu().numpy())
+    return output_t
+
+def get_tcn_encode(args, train_head, dev_head, test_head, weights, output_class=1):
+
+    model = models.TemporalConv(num_inputs = args.input_dim, num_channels=args.num_channels, \
+                                            kernel_size=args.kernel_size, dropout = args.dropout, output_class=output_class)                                        
+    model.to(device)
+    model.load_state_dict(torch.load(weights))
+    model.eval()
+    train_encode = creat_tcn_encode(model, train_head)
+    dev_encode = creat_tcn_encode(model, dev_head)
+    test_encode = creat_tcn_encode(model, test_head)
+
+    return train_encode, dev_encode, test_encode
+
+def get_tcn_encode_t(args, test_head, weights, output_class=1):
+
+    model = models.TemporalConv(num_inputs = args.input_dim, num_channels=args.num_channels, \
+                                            kernel_size=args.kernel_size, dropout = args.dropout, output_class=output_class)                                        
+    model.to(device)
+    model.load_state_dict(torch.load(weights))
+    model.eval()
+    test_encode = creat_tcn_encode(model, test_head)
+
+    return test_encode
+
+def creat_lstm_encode(model, vitals):
+    output_t = []
+    for d in vitals: # (200, 24), (200, 32)
+        d_tensor = torch.from_numpy(d).unsqueeze(0).float().to(device)
+        out, (_, _) = model.rnn(d_tensor.transpose(1, 2)) # (1, 24, 512)
+        output_t.append(out.transpose(1, 2).squeeze(0).detach().cpu().numpy())
+    return output_t
+
+def get_lstm_encode(args, train_head, dev_head, test_head, weights, output_class=1):
+    model = models.RecurrentModel(cell='lstm', hidden_dim=args.hidden_dim, layer_dim=args.layer_dim, \
+                                            output_dim=output_class, dropout_prob=args.dropout, idrop=args.idrop)
+    model.to(device)
+    model.load_state_dict(torch.load(weights))
+    model.eval()
+    train_encode = creat_lstm_encode(model, train_head)
+    dev_encode = creat_lstm_encode(model, dev_head)
+    test_encode = creat_lstm_encode(model, test_head)
+
+    return train_encode, dev_encode, test_encode
+
+def get_lstm_encode_t(args, test_head, weights, output_class=1):
+    model = models.RecurrentModel(cell='lstm', hidden_dim=args.hidden_dim, layer_dim=args.layer_dim, \
+                                            output_dim=output_class, dropout_prob=args.dropout, idrop=args.idrop)
+    model.to(device)
+    model.load_state_dict(torch.load(weights))
+    model.eval()
+    # train_encode = creat_lstm_encode(model, train_head)
+    # dev_encode = creat_lstm_encode(model, dev_head)
+    test_encode = creat_lstm_encode(model, test_head)
+
+    return test_encode
+
+def creat_trans_encode(model, vitals):
+    output_t = []
+    for d in vitals: # (200, 24), (200, 32)
+        src = torch.from_numpy(d).unsqueeze(0).float().to(device)
+        key_mask = torch.zeros((1, d.shape[-1]), dtype=torch.bool).to(device)
+# torch.from_numpy(np.asarray(key_mask))
+        tgt_mask = model.get_tgt_mask(d.shape[-1]).to(device)
+        src = model.encoder(src.transpose(1, 2)) # (1, 24, 256)
+        src = model.pos_encoder(src) # (1, 24, 256)
+        output = model.transformer_encoder(src, tgt_mask, key_mask)
+        # (bs, len, dimension)
+        output_t.append(output.transpose(1, 2).squeeze(0).detach().cpu().numpy())
+    return output_t
+
+def get_trans_encode(args, train_head, dev_head, test_head, weights, output_class=1):
+    model = models.Trans_encoder(feature_dim=args.input_dim, d_model=args.d_model, nhead=args.n_head, d_hid=args.dim_ff_mul*args.d_model, \
+                      nlayers=args.num_enc_layer, out_dim=output_class, dropout=args.dropout)  
+    model.to(device)
+    model.load_state_dict(torch.load(weights))
+    model.eval()
+    train_encode = creat_trans_encode(model, train_head)
+    dev_encode = creat_trans_encode(model, dev_head)
+    test_encode = creat_trans_encode(model, test_head)
+
+    return train_encode, dev_encode, test_encode
+
+def get_trans_encode_t(args, test_head, weights, output_class=1):
+    model = models.Trans_encoder(feature_dim=args.input_dim, d_model=args.d_model, nhead=args.n_head, d_hid=args.dim_ff_mul*args.d_model, \
+                      nlayers=args.num_enc_layer, out_dim=output_class, dropout=args.dropout)  
+    model.to(device)
+    model.load_state_dict(torch.load(weights))
+    model.eval()
+    # train_encode = creat_trans_encode(model, train_head)
+    # dev_encode = creat_trans_encode(model, dev_head)
+    test_encode = creat_trans_encode(model, test_head)
+
+    return test_encode
+
+def get_cv_data(train_data, dev_data, train_target, dev_target, train_index, dev_index):
+    trainval_head = train_data + dev_data
+    trainval_static = np.concatenate((train_target, dev_target), axis=0)
+    train_cv = [trainval_head[i] for i in train_index]
+    train_cvl = [trainval_static[i] for i in train_index]
+    dev_cv = [trainval_head[i] for i in dev_index]
+    dev_cvl = [trainval_static[i] for i in dev_index]
+    return train_cv, dev_cv, np.asarray(train_cvl), np.asarray(dev_cvl)
+
+def cal_acc(pred, label):
+    pred_t = torch.concat(pred)
+    prediction =  torch.argmax(pred_t, dim=-1).unsqueeze(-1)
+    label_t = torch.concat(label)
+    acc = (prediction == label_t).sum()/len(pred_t)
+    return acc
+
+def cal_pos_acc(pred, label, pos_ind):
+    pred_t = torch.concat(pred)
+    prediction =  torch.argmax(pred_t, dim=-1).unsqueeze(-1)
+    label_t = torch.concat(label)
+    # positive index
+    ind = [i for i in range(len(pred_t)) if label_t[i] == pos_ind]
+    acc = (prediction[ind] == label_t[ind]).sum()/len(ind)
+    return acc
+
+def get_auc_ci(y_true, y_pred,  n_bootstraps = 1000, rng_seed = 42):
+    
+    bootstrapped_scores = []
+
+    rng = np.random.RandomState(rng_seed)
+    for i in range(n_bootstraps):
+        # bootstrap by sampling with replacement on the prediction indices
+        indices = rng.randint(0, len(y_pred), len(y_pred))
+        score = roc_auc_score(y_true[indices], y_pred[indices])
+        bootstrapped_scores.append(score)
+        # print("Bootstrap #{} ROC area: {:0.3f}".format(i + 1, score))
+    sorted_scores = np.array(bootstrapped_scores)
+    sorted_scores.sort()
+
+    # Computing the lower and upper bound of the 90% confidence interval
+    # You can change the bounds percentiles to 0.025 and 0.975 to get
+    # a 95% confidence interval instead.
+    confidence_lower = sorted_scores[int(0.05 * len(sorted_scores))]
+    confidence_upper = sorted_scores[int(0.95 * len(sorted_scores))]
+    return confidence_lower, confidence_upper
+
+
+def zero_col(data_head, cols):
+
+    for i in range(len(data_head)):
+        array = data_head[i]
+        for row in cols:
+            array[row] = 0
+    return
