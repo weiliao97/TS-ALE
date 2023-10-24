@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
 
     # data
-    parser.add_argument("--database", type=str, default='mimic_tran_general_sofa', choices=['mimic', 'eicu'])
+    parser.add_argument("--database", type=str, default='mimic_tcn_fc', choices=['mimic', 'eicu'])
     parser.add_argument("--use_sepsis3", action = 'store_true', default= False, help="Whethe only use sepsis3 subset")
     parser.add_argument("--input_dim", type = int, default= 200, help="Dimension of variables used to train the extarction model")
     parser.add_argument("--bucket_size", type=int, default=300, help="path to the dataset")
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     parser.add_argument("--read_reluslope", type=float, default=0.1, help="Relu slope in the FC read model")
     parser.add_argument("--read_channels", nargs='+', type = int, help='num of channels in FC read model')
     parser.add_argument("--output_classes", type=int, default=2, help="Which static column to target")
-    parser.add_argument("--sens_ind", type=int, default=0, help = "target index to predict")
+    parser.add_argument("--sens_ind", type=int, default=2, help = "target index to predict")
     parser.add_argument("--cal_pos_acc", action = 'store_false', default=True, help="Whethe calculate the acc of the positive class")
 
 
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     keys_sim = [i[0] for i in keys]
     ale_df = pd.DataFrame(index=keys_sim)
     ale_df['ale'] = ''
-    for var_ind in var_inds[:2]:
+    for var_ind in var_inds:
         ind = var_ind//2 if var_ind <= 108 else (var_ind-6)//2
         key = keys_sim[ind]
         max_ale = []
