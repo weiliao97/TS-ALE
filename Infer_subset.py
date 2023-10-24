@@ -153,6 +153,7 @@ if __name__ == "__main__":
     ale_001_003 = [60, 10, 76, 116, 28, 24, 44, 122, 22, 70, 86, 94, 42, 154, 82, 162, 54, 92, 150, 50, 146, 148, 102, 160, 64, 34,
                    4, 134, 156, 96, 72, 126, 16, 2, 70]
     rows_to_zero = [0, 1, 8, 9, 30, 31, 32, 33, 38, 39, 56, 57, 58, 59, 84, 85, 88, 89, 98, 99, 106, 107] + ale_001_003 + [i+1 for i in ale_001_003]
+    # read ale df, find the top k (the percentage specified * 200) columns and set it to zero
     
     utils.zero_col(train_head, rows_to_zero)
     utils.zero_col(dev_head, rows_to_zero)
