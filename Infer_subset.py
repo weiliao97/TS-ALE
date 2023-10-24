@@ -44,6 +44,7 @@ if __name__ == "__main__":
     ## model representation to get from
     parser.add_argument("--model_name", type=str, default='TCN', choices=['Transformer', 'TCN', 'LSTM'])
     parser.add_argument("--col_count", type=int, default=10, help = 'top k cols to zero')
+    parser.add_argument("--ale_file", type=str)
     # data
     parser.add_argument("--database", type=str, default='mimic', choices=['mimic', 'eicu'])
     parser.add_argument("--use_sepsis3", action = 'store_false', default= True, help="Whethe only use sepsis3 subset")
@@ -150,10 +151,19 @@ if __name__ == "__main__":
         dev_head_e, dev_sofa_e, dev_id_e, dev_target_e = utils.filter_sepsis_e(dev_head_e, dev_sofa_e, dev_id_e, dev_target_e)
         test_head_e, test_sofa_e, test_id_e, test_target_e = utils.filter_sepsis_e(test_head_e, test_sofa_e, test_id_e, test_target_e)
 
-    ale_001_003 = [60, 10, 76, 116, 28, 24, 44, 122, 22, 70, 86, 94, 42, 154, 82, 162, 54, 92, 150, 50, 146, 148, 102, 160, 64, 34,
-                   4, 134, 156, 96, 72, 126, 16, 2, 70]
-    rows_to_zero = [0, 1, 8, 9, 30, 31, 32, 33, 38, 39, 56, 57, 58, 59, 84, 85, 88, 89, 98, 99, 106, 107] + ale_001_003 + [i+1 for i in ale_001_003]
-    # read ale df, find the top k (the percentage specified * 200) columns and set it to zero
+    ale_df = pd.read_csv(base + args.ale_file)
+    ale_df.rename(columns={"Unnamed: 0": "col"}, inplace=True)
+    # column name to index 
+    mimic_mean_std = pd.read_hdf('/content/drive/MyDrive/ColabNotebooks/MIMIC/Extract/MEEP/Extracted_sep_2022/0910/MEEP_stats_MIMIC.h5')
+    col_means, col_stds = mimic_mean_std.loc[:, 'mean'], mimic_mean_std.loc[:, 'std']
+    var_inds = [i for i in range(0, 109, 2)] + [i for i in range(116, 169, 2)]
+    keys = list(col_means.keys())
+    keys_sim = [i[0] for i in keys]
+    name_col = {name: key for name, key in zip(keys_sim, var_inds)}
+    ale_df.sort_values('ale', ascending=False, inplace=True)
+    col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
+    col_to_zero = [name_col[c] for c in col_list]
+    rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
     
     utils.zero_col(train_head, rows_to_zero)
     utils.zero_col(dev_head, rows_to_zero)
