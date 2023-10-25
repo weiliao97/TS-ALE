@@ -1,4 +1,5 @@
 import argparse
+import random 
 import torch
 import numpy as np
 import pandas as pd
@@ -45,6 +46,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str, default='TCN', choices=['Transformer', 'TCN', 'LSTM'])
     parser.add_argument("--col_count", type=int, default=10, help = 'top k cols to zero')
     parser.add_argument("--ale_file", type=str)
+    parser.add_argument("--use_random", action = 'store_true', default= False, help="Whethe randomly zero cols")
     # data
     parser.add_argument("--database", type=str, default='mimic', choices=['mimic', 'eicu'])
     parser.add_argument("--use_sepsis3", action = 'store_false', default= True, help="Whethe only use sepsis3 subset")
@@ -160,11 +162,16 @@ if __name__ == "__main__":
     keys = list(col_means.keys())
     keys_sim = [i[0] for i in keys]
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
-    ale_df.sort_values('ale', ascending=False, inplace=True)
-    col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
-    col_to_zero = [name_col[c] for c in col_list]
+    if not args.use_random: 
+        print('Use ALE to zero cols')
+        ale_df.sort_values('ale', ascending=False, inplace=True)
+        col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
+        col_to_zero = [name_col[c] for c in col_list]
+    else: 
+        print('Randomly zero cols')
+        col_to_zero = random.choices(var_inds, k=args.col_count)
+        
     rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
-    
     utils.zero_col(train_head, rows_to_zero)
     utils.zero_col(dev_head, rows_to_zero)
     utils.zero_col(test_head, rows_to_zero)
