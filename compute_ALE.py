@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     # model path 
     parser.add_argument("--model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/0125_mimic_TCNsepsis_3_256_ks3/fold0_best_loss.pt')
-    parser.add_argument("--fc_model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/0128_mimic_TCN_FC_Ethnicity/fold0_best_loss.pt')
+    parser.add_argument("--fc_model_path", type=str, default='0128_mimic_TCN_FC_Ethnicity/fold0_best_loss.pt')
   
 
     args = parser.parse_args()
@@ -139,7 +139,8 @@ if __name__ == "__main__":
                             dropout=args.read_drop, reluslope=args.read_reluslope, \
                             output_class=args.output_classes)
     fc_model.to(device)
-    fc_model.load_state_dict(torch.load(args.fc_model_path))
+    fc_model_path = '/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + args.fc_model_path
+    fc_model.load_state_dict(torch.load(fc_model_path))
     fc_model.eval()
 
     model_c = models.Combined_model(model.network, fc_model)
@@ -179,7 +180,7 @@ if __name__ == "__main__":
         ax.set_xlabel('%s'%key, size=18,  fontweight='bold')
         ax.set_ylabel('Prob ALE', size=18,  fontweight='bold')
         plt.savefig('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname + '/%s_ale.pdf'%key, format='pdf', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
-    ale_df.to_csv('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname + '/ale.csv')
+        ale_df.to_csv('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname + '/ale.csv')
     
 
 
