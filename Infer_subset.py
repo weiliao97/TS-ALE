@@ -136,7 +136,7 @@ if __name__ == "__main__":
    
     true_ind = target_index[args.infer_ind]
     args.bucket_size = bucket_sizes[args.infer_ind]
-    workname = date + 'infer_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind]
+    workname = date + 'infer_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' if args.use_random else date + 'infer_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind]
     utils.creat_checkpoint_folder(base + workname, 'params.json', vars(args))
     train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', true_ind)
     dev_head, dev_sofa, dev_id, dev_target =  utils.crop_data_target(dev_vital , mimic_target, mimic_static, 'dev', true_ind)
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     else: 
         print('Randomly zero cols')
         col_to_zero = random.choices(var_inds, k=args.col_count)
-        
+
     rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
     utils.zero_col(train_head, rows_to_zero)
     utils.zero_col(dev_head, rows_to_zero)
