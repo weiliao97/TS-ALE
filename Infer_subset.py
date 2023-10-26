@@ -137,7 +137,14 @@ if __name__ == "__main__":
    
     true_ind = target_index[args.infer_ind]
     args.bucket_size = bucket_sizes[args.infer_ind]
-    workname = date + 'infer_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' if args.use_random else date + 'infer_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind]
+        
+    if args.use_random:
+        workname = date + 'infer_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' 
+    elif args.use_reverse:
+        workname = date + 'infer_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'reverse' 
+    else: 
+        workname = date + 'infer_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind]
+        
     utils.creat_checkpoint_folder(base + workname, 'params.json', vars(args))
     train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', true_ind)
     dev_head, dev_sofa, dev_id, dev_target =  utils.crop_data_target(dev_vital , mimic_target, mimic_static, 'dev', true_ind)
