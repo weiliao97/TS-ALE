@@ -47,6 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("--col_count", type=int, default=10, help = 'top k cols to zero')
     parser.add_argument("--ale_file", type=str)
     parser.add_argument("--use_random", action = 'store_true', default= False, help="Whethe randomly zero cols")
+    parser.add_argument("--use_reverse", action = 'store_true', default= False, help="Whethe reversely zero cols")
     # data
     parser.add_argument("--database", type=str, default='mimic', choices=['mimic', 'eicu'])
     parser.add_argument("--use_sepsis3", action = 'store_false', default= True, help="Whethe only use sepsis3 subset")
@@ -163,10 +164,17 @@ if __name__ == "__main__":
     keys_sim = [i[0] for i in keys]
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
     if not args.use_random: 
-        print('Use ALE to zero cols')
-        ale_df.sort_values('ale', ascending=False, inplace=True)
-        col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
-        col_to_zero = [name_col[c] for c in col_list]
+        if args.use_reverse: 
+            print('Sample reverse cols to zero')
+            ale_df.sort_values('ale', ascending=True, inplace=True)
+            col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
+            col_to_zero = [name_col[c] for c in col_list]  
+        else: 
+            print('Use ALE to zero cols')
+            ale_df.sort_values('ale', ascending=False, inplace=True)
+            col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
+            col_to_zero = [name_col[c] for c in col_list]
+
     else: 
         print('Randomly zero cols')
         col_to_zero = random.choices(var_inds, k=args.col_count)
