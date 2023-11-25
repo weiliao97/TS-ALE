@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd 
+import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -55,13 +57,13 @@ if __name__ == "__main__":
     parser.add_argument("--num_enc_layer", type=int, default=2, help="Number of encoding layers")
 
 
-    ## FC read model parameters
-    parser.add_argument("--read_drop", type=float, default=0.2, help="Model dropout in FC read model")
-    parser.add_argument("--read_reluslope", type=float, default=0.1, help="Relu slope in the FC read model")
-    parser.add_argument("--read_channels", nargs='+', type = int, help='num of channels in FC read model')
-    parser.add_argument("--output_classes", type=int, default=2, help="Which static column to target")
-    parser.add_argument("--infer_ind", type=int, default=1, help="Which static column to target")
-    parser.add_argument("--cal_pos_acc", action = 'store_false', default=True, help="Whethe calculate the acc of the positive class")
+    # ## FC read model parameters
+    # parser.add_argument("--read_drop", type=float, default=0.2, help="Model dropout in FC read model")
+    # parser.add_argument("--read_reluslope", type=float, default=0.1, help="Relu slope in the FC read model")
+    # parser.add_argument("--read_channels", nargs='+', type = int, help='num of channels in FC read model')
+    # parser.add_argument("--output_classes", type=int, default=2, help="Which static column to target")
+    # parser.add_argument("--infer_ind", type=int, default=1, help="Which static column to target")
+    # parser.add_argument("--cal_pos_acc", action = 'store_false', default=True, help="Whethe calculate the acc of the positive class")
 
     # learning parameters
     parser.add_argument("--epochs", type=int, default=300, help="Number of training epochs")
@@ -90,36 +92,25 @@ if __name__ == "__main__":
                             allow_pickle=True).item()
     mimic_target = np.load('/content/drive/MyDrive/ColabNotebooks/MIMIC/Extract/MEEP/Extracted_sep_2022/0910/MIMIC_target_0922_2022.npy', \
                             allow_pickle=True).item()
-
-    #read eicu data
-    meep_eicu = np.load('/content/drive/MyDrive/ColabNotebooks/MIMIC/Extract/MEEP/Extracted_sep_2022/0910/eICU_compile_0911_2022_2.npy', \
-                    allow_pickle=True).item()
-    train_vital_e = meep_eicu['train_head']
-    dev_vital_e = meep_eicu ['dev_head']
-    test_vital_e = meep_eicu ['test_head']
-    eicu_static = np.load('/content/drive/MyDrive/ColabNotebooks/MIMIC/Extract/MEEP/Extracted_sep_2022/0910/eICU_static_0922_2022.npy', \
-                            allow_pickle=True).item()
-    eicu_target = np.load('/content/drive/MyDrive/ColabNotebooks/MIMIC/Extract/MEEP/Extracted_sep_2022/0910/eICU_target_0922_2022.npy', \
-                            allow_pickle=True).item()
     
-    # gender, age, race #
-    target_index = [0, 1, 21] + [i for i in range(4, 21)]
-    target_name = ['Sex', 'Age', 'Race', 'MI', 'CHF',
-        'PVD', 'CBVD', 'Dementia', 'CPD', 'RD',
-        'PUD', 'MLD', 'Diabetes_wo_cc',
-        'Diabetes_cc', 'Paraplegia', 'Renal', 'Mal_cancer',
-        'SLD', 'MST'] 
-    bucket_sizes =  [300, 300, 300, 300, 300, 300, 300, 1200, 300, 1200, 1200, 600, 300, 600, 1200, 300, 300, 1200, 1200]
+    # # gender, age, race #
+    # target_index = [0, 1, 21] + [i for i in range(4, 21)]
+    # target_name = ['Sex', 'Age', 'Race', 'MI', 'CHF',
+    #     'PVD', 'CBVD', 'Dementia', 'CPD', 'RD',
+    #     'PUD', 'MLD', 'Diabetes_wo_cc',
+    #     'Diabetes_cc', 'Paraplegia', 'Renal', 'Mal_cancer',
+    #     'SLD', 'MST'] 
+    # bucket_sizes =  [300, 300, 300, 300, 300, 300, 300, 1200, 300, 1200, 1200, 600, 300, 600, 1200, 300, 300, 1200, 1200]
    
-    true_ind = target_index[args.infer_ind]
-    args.bucket_size = bucket_sizes[args.infer_ind]
+    # true_ind = target_index[args.infer_ind]
+    # args.bucket_size = bucket_sizes[args.infer_ind]
         
     if args.use_random:
-        workname = date + 'retrain_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' 
+        workname = date + 'retrain_subset_%d'%args.col_count + '_' + 'random' 
     elif args.use_reverse:
-        workname = date + 'retrain_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'reverse' 
+        workname = date + 'retrain_subset_%d'%args.col_count + '_' + 'reverse' 
     else: 
-        workname = date + 'retrain_subset_%d'%args.col_count +  '_' + target_name[args.infer_ind]
+        workname = date + 'retrain_subset_%d'%args.col_count 
 
     train_head, train_static, train_sofa, train_id = utils.crop_data_target(args.database, train_vital, mimic_target, mimic_static, 'train')
     dev_head, dev_static, dev_sofa, dev_id = utils.crop_data_target(args.database, dev_vital, mimic_target, mimic_static, 'dev')
@@ -130,9 +121,40 @@ if __name__ == "__main__":
         dev_head, dev_static, dev_sofa, dev_id = utils.filter_sepsis(args.database, dev_head, dev_static, dev_sofa, dev_id)
         test_head, test_static, test_sofa, test_id = utils.filter_sepsis(args.database, test_head, test_static, test_sofa, test_id)
 
+    ale_df = pd.read_csv(base + args.ale_file)
+    ale_df.rename(columns={"Unnamed: 0": "col"}, inplace=True)
+    # column name to index 
+    mimic_mean_std = pd.read_hdf('/content/drive/MyDrive/ColabNotebooks/MIMIC/Extract/MEEP/Extracted_sep_2022/0910/MEEP_stats_MIMIC.h5')
+    col_means, col_stds = mimic_mean_std.loc[:, 'mean'], mimic_mean_std.loc[:, 'std']
+    var_inds = [i for i in range(0, 109, 2)] + [i for i in range(116, 169, 2)]
+    keys = list(col_means.keys())
+    keys_sim = [i[0] for i in keys]
+    name_col = {name: key for name, key in zip(keys_sim, var_inds)}
+    if not args.use_random: 
+        if args.use_reverse: 
+            print('Sample reverse cols to zero')
+            ale_df.sort_values('ale', ascending=True, inplace=True)
+            col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
+            col_to_zero = [name_col[c] for c in col_list]  
+        else: 
+            print('Use ALE to zero cols')
+            ale_df.sort_values('ale', ascending=False, inplace=True)
+            col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
+            col_to_zero = [name_col[c] for c in col_list]
+
+    else: 
+        print('Randomly zero cols')
+        col_to_zero = random.choices(var_inds, k=args.col_count)
+        print(col_to_zero)
+
+    rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
+
+    train_head = utils.drop_col(train_head, rows_to_zero)
+    dev_head = utils.drop_col(dev_head, rows_to_zero)
+    test_head = utils.drop_col(test_head, rows_to_zero)
+    
     input_dim =train_head[0].shape[0]
     static_dim = train_static[0].shape[0]
-
 
     if args.model_name == 'TCN':
         model = models.TemporalConv(num_inputs=input_dim, num_channels=args.num_channels,

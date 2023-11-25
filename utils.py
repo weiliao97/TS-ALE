@@ -434,6 +434,10 @@ def zero_col(data_head, cols):
             array[row] = 0
     return
 
+def drop_col(data_head, cols):
+    data_reduce = [d[:, ~np.isin(np.arange(d.shape[1]), cols)] for d in data_head]
+    return data_reduce
+
 def get_evalacc_results(model, test_loader):
     
     model.eval()
