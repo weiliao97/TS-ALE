@@ -42,6 +42,25 @@ def creat_checkpoint_folder(target_path, target_file, data):
     with open(os.path.join(target_path, target_file), 'w') as f:
         json.dump(data, f)
 
+def crop_data_target_sofa(database, vital, target_dict, static_dict, mode):
+
+    length = [i.shape[-1] for i in vital]
+    all_train_id = list(target_dict[mode].keys())
+    stayids = [all_train_id[i] for i, m in enumerate(length) if m > 24]
+    sofa_tail = [target_dict[mode][j][24:] / 15 for j in stayids]
+    sname = 'static_' + mode
+    if database == 'mimic':
+        train_filter = [vital[i][:, :-24] for i, m in enumerate(length) if m > 24]
+        static_data = [static_dict[sname][static_dict[sname].index.get_level_values('stay_id') == j].values for j in
+                   stayids]
+    else:
+        train_filter = [vital[i][:, :-24] for i, m in enumerate(length) if m >24]
+        static_data = [static_dict[sname][static_dict[sname].index.get_level_values('patientunitstayid') == j].values for j in
+                   stayids]
+    # remove hospital mort flag and los
+    # squeese from (1, 25) to (25, )
+    static_data = [np.squeeze(np.concatenate((s[:, :2], s[:, 4:]), axis=1)) for s in static_data]
+    return train_filter, static_data, sofa_tail, stayids
 
 def crop_data_target(vital, target_dict, static_dict, mode, target_index):
     '''

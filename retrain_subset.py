@@ -9,7 +9,7 @@ from datetime import date
 today = date.today()
 date = today.strftime("%m%d")
 import models
-import prepare_data
+import prepare_retrain
 import utils
 from sklearn.model_selection import KFold
 kf = KFold(n_splits=10, random_state=None, shuffle=False)
@@ -112,9 +112,9 @@ if __name__ == "__main__":
     else: 
         workname = date + 'retrain_subset_%d'%args.col_count 
 
-    train_head, train_static, train_sofa, train_id = utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train')
-    dev_head, dev_static, dev_sofa, dev_id = utils.crop_data_target(dev_vital, mimic_target, mimic_static, 'dev')
-    test_head, test_static, test_sofa, test_id = utils.crop_data_target(test_vital, mimic_target, mimic_static, 'test')
+    train_head, train_static, train_sofa, train_id = utils.crop_data_target_sofa(args.database, train_vital, mimic_target, mimic_static, 'train')
+    dev_head, dev_static, dev_sofa, dev_id = utils.crop_data_target_sofa(args.database, dev_vital, mimic_target, mimic_static, 'dev')
+    test_head, test_static, test_sofa, test_id = utils.crop_data_target_sofa(args.database, test_vital, mimic_target, mimic_static, 'test')
 
     if args.use_sepsis3 == True:
         train_head, train_static, train_sofa, train_id = utils.filter_sepsis(train_head, train_static, train_sofa, train_id)
@@ -198,7 +198,7 @@ if __name__ == "__main__":
         train_stail, val_stail = utils.slice_data(trainval_stail, train_index), utils.slice_data(trainval_stail, test_index)
         train_id, val_id = utils.slice_data(trainval_ids, train_index), utils.slice_data(trainval_ids, test_index)
 
-        train_dataloader, dev_dataloader, test_dataloader = prepare_data.get_data_loader(args, train_head, val_head,
+        train_dataloader, dev_dataloader, test_dataloader = prepare_retrain.get_data_loader(args, train_head, val_head,
                                                                                             test_head, 
                                                                                             train_stail, val_stail,
                                                                                             test_sofa,
