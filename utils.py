@@ -41,6 +41,12 @@ def creat_checkpoint_folder(target_path, target_file, data):
             raise
     with open(os.path.join(target_path, target_file), 'w') as f:
         json.dump(data, f)
+        
+def count_parameters(model):
+    """
+    Count the number of trainable parameters in the model
+    """
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 def crop_data_target_sofa(database, vital, target_dict, static_dict, mode):
 
