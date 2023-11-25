@@ -41,7 +41,7 @@ def creat_checkpoint_folder(target_path, target_file, data):
             raise
     with open(os.path.join(target_path, target_file), 'w') as f:
         json.dump(data, f)
-        
+
 def count_parameters(model):
     """
     Count the number of trainable parameters in the model
@@ -211,6 +211,12 @@ def filter_sepsis_e(vital, sofa, ids, target):
     sofa_sepsis = [sofa[i] for i in ind]
     target_sepsis = [target[i] for i in ind]
     return vital_sepsis, sofa_sepsis, [ids[i] for i in ind], target_sepsis
+
+def slice_data(trainval_data, index):
+    """
+    Slice data based on index 
+    """
+    return [trainval_data[i] for i in index]
 
 def plot_confusion_matrix(y_list, y_pred_list, title='Confusion matrix', label_x=None, label_y=None):
     """
