@@ -172,6 +172,20 @@ def crop_data_target_e(vital, target_dict, static_dict, mode, target_index):
 
     return train_filter, sofa_tail, stayids, train_target
 
+def filter_sepsis_sofa(database, vital, static, sofa, ids): 
+    if database == 'mimic':
+        id_df = pd.read_csv('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/mimic_sepsis3.csv')
+        sepsis3_id = id_df['stay_id'].values  # 1d array
+    else:
+        id_df = pd.read_csv('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/eicu_sepsis3.csv')
+        sepsis3_id = id_df['patientunitstayid'].values # 1d array 
+    index_dict = dict((value, idx) for idx, value in enumerate(ids))
+    ind = [index_dict[x] for x in sepsis3_id if x in index_dict.keys()]
+    vital_sepsis = [vital[i] for i in ind]
+    static_sepsis = [static[i] for i in ind]
+    sofa_sepsis = [sofa[i] for i in ind]
+    return vital_sepsis, static_sepsis, sofa_sepsis, [ids[i] for i in ind]
+
 def filter_sepsis(vital, sofa, ids, target):
     id_df = pd.read_csv('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/mimic_sepsis3.csv')
     sepsis3_id = id_df['stay_id'].values # 1d array 

@@ -117,9 +117,9 @@ if __name__ == "__main__":
     test_head, test_static, test_sofa, test_id = utils.crop_data_target_sofa(args.database, test_vital, mimic_target, mimic_static, 'test')
 
     if args.use_sepsis3 == True:
-        train_head, train_static, train_sofa, train_id = utils.filter_sepsis(train_head, train_static, train_sofa, train_id)
-        dev_head, dev_static, dev_sofa, dev_id = utils.filter_sepsis(dev_head, dev_static, dev_sofa, dev_id)
-        test_head, test_static, test_sofa, test_id = utils.filter_sepsis(test_head, test_static, test_sofa, test_id)
+        train_head, train_static, train_sofa, train_id = utils.filter_sepsis_sofa(args.database, train_head, train_static, train_sofa, train_id)
+        dev_head, dev_static, dev_sofa, dev_id = utils.filter_sepsis_sofa(args.database, dev_head, dev_static, dev_sofa, dev_id)
+        test_head, test_static, test_sofa, test_id = utils.filter_sepsis_sofa(args.database, test_head, test_static, test_sofa, test_id)
 
     ale_df = pd.read_csv(base + args.ale_file)
     ale_df.rename(columns={"Unnamed: 0": "col"}, inplace=True)
