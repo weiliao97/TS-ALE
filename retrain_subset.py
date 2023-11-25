@@ -112,14 +112,14 @@ if __name__ == "__main__":
     else: 
         workname = date + 'retrain_subset_%d'%args.col_count 
 
-    train_head, train_static, train_sofa, train_id = utils.crop_data_target(args.database, train_vital, mimic_target, mimic_static, 'train')
-    dev_head, dev_static, dev_sofa, dev_id = utils.crop_data_target(args.database, dev_vital, mimic_target, mimic_static, 'dev')
-    test_head, test_static, test_sofa, test_id = utils.crop_data_target(args.database, test_vital, mimic_target, mimic_static, 'test')
+    train_head, train_static, train_sofa, train_id = utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train')
+    dev_head, dev_static, dev_sofa, dev_id = utils.crop_data_target(dev_vital, mimic_target, mimic_static, 'dev')
+    test_head, test_static, test_sofa, test_id = utils.crop_data_target(test_vital, mimic_target, mimic_static, 'test')
 
     if args.use_sepsis3 == True:
-        train_head, train_static, train_sofa, train_id = utils.filter_sepsis(args.database, train_head, train_static, train_sofa, train_id)
-        dev_head, dev_static, dev_sofa, dev_id = utils.filter_sepsis(args.database, dev_head, dev_static, dev_sofa, dev_id)
-        test_head, test_static, test_sofa, test_id = utils.filter_sepsis(args.database, test_head, test_static, test_sofa, test_id)
+        train_head, train_static, train_sofa, train_id = utils.filter_sepsis(train_head, train_static, train_sofa, train_id)
+        dev_head, dev_static, dev_sofa, dev_id = utils.filter_sepsis(dev_head, dev_static, dev_sofa, dev_id)
+        test_head, test_static, test_sofa, test_id = utils.filter_sepsis(test_head, test_static, test_sofa, test_id)
 
     ale_df = pd.read_csv(base + args.ale_file)
     ale_df.rename(columns={"Unnamed: 0": "col"}, inplace=True)
@@ -286,7 +286,7 @@ if __name__ == "__main__":
                 patience = 0
                 best_loss = loss_te
                 torch.save(model.state_dict(),
-                            './checkpoints/' + workname + '/' + 'fold%d' % c_fold + '_best_loss.pt')
+                            base + workname + '/' + 'fold%d' % c_fold + '_best_loss.pt')
             else:
                 patience += 1
                 if patience >= 10:
