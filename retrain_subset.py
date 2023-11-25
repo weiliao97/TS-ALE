@@ -225,19 +225,18 @@ if __name__ == "__main__":
                 # ti_data = Variable(ti.float().to(device))
                 # td_data = vitals.to(device) # (6, 182, 24)
                 # sofa = target.to(device)
-                if args.static_fusion == 'no_static':
-                    if args.model_name == 'TCN': 
-                        sofa_p = model(vitals.to(device))
-                    elif args.model_name == 'RNN':
-                        # x_lengths have to be a 1d tensor
-                        td_transpose = vitals.to(device).transpose(1, 2)
-                        x_lengths = torch.LongTensor([len(key_mask[i][key_mask[i] == 0]) for i in range(key_mask.shape[0])])
-                        sofa_p = model(td_transpose, x_lengths)
-                    elif args.model_name == 'Transformer':
-                        tgt_mask = model.get_tgt_mask(vitals.to(device).shape[-1]).to(device)
-                        sofa_p = model(vitals.to(device), tgt_mask, key_mask.bool().to(device))
-                else:
-                    sofa_p = model(vitals.to(device), static.to(device))
+       
+                if args.model_name == 'TCN': 
+                    sofa_p = model(vitals.to(device))
+                elif args.model_name == 'RNN':
+                    # x_lengths have to be a 1d tensor
+                    td_transpose = vitals.to(device).transpose(1, 2)
+                    x_lengths = torch.LongTensor([len(key_mask[i][key_mask[i] == 0]) for i in range(key_mask.shape[0])])
+                    sofa_p = model(td_transpose, x_lengths)
+                elif args.model_name == 'Transformer':
+                    tgt_mask = model.get_tgt_mask(vitals.to(device).shape[-1]).to(device)
+                    sofa_p = model(vitals.to(device), tgt_mask, key_mask.bool().to(device))
+       
 
                 loss = utils.mse_maskloss(sofa_p, target.to(device), key_mask.to(device))
                 if args.regularization == 'l1':
@@ -262,19 +261,18 @@ if __name__ == "__main__":
             with torch.no_grad():  # validation does not require gradient
 
                 for vitals, static, target, val_ids, key_mask in dev_dataloader:
-                    if args.static_fusion == 'no_static':
-                        if args.model_name == 'TCN':
-                            sofap_t = model(vitals.to(device))
-                        elif args.model_name == 'RNN':
-                            # x_lengths have to be a 1d tensor 
-                            td_transpose = vitals.to(device).transpose(1, 2)
-                            x_lengths = torch.LongTensor([len(key_mask[i][key_mask[i] == 0]) for i in range(key_mask.shape[0])])
-                            sofap_t = model(td_transpose, x_lengths)
-                        elif args.model_name == 'Transformer':
-                            tgt_mask = model.get_tgt_mask(vitals.to(device).shape[-1]).to(device)
-                            sofap_t = model(vitals.to(device), tgt_mask, key_mask.bool().to(device))
-                    else:
-                         sofap_t = model(vitals.to(device), static.to(device))
+
+                    if args.model_name == 'TCN':
+                        sofap_t = model(vitals.to(device))
+                    elif args.model_name == 'RNN':
+                        # x_lengths have to be a 1d tensor 
+                        td_transpose = vitals.to(device).transpose(1, 2)
+                        x_lengths = torch.LongTensor([len(key_mask[i][key_mask[i] == 0]) for i in range(key_mask.shape[0])])
+                        sofap_t = model(td_transpose, x_lengths)
+                    elif args.model_name == 'Transformer':
+                        tgt_mask = model.get_tgt_mask(vitals.to(device).shape[-1]).to(device)
+                        sofap_t = model(vitals.to(device), tgt_mask, key_mask.bool().to(device))
+
                     loss_v = utils.mse_maskloss(sofap_t, target.to(device), key_mask.to(device))
                     y_list.append(target.detach().numpy())
                     y_pred_list.append(sofap_t.cpu().detach().numpy())

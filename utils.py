@@ -19,6 +19,7 @@ plt.rcParams["axes.labelweight"] = "bold"
 legend_properties = {'weight':'bold', 'size': 6}
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ce_loss = nn.CrossEntropyLoss()
+mse_loss = nn.MSELoss()
 softmax = torch.nn.Softmax(dim=1) 
 
 def creat_checkpoint_folder(target_path, target_file, data):
@@ -47,6 +48,14 @@ def count_parameters(model):
     Count the number of trainable parameters in the model
     """
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+def mse_maskloss(output, target, mask):
+    """
+    Calculate MSE loss with mask
+    input: output,
+    """
+    loss = [mse_loss(output[i][mask[i] == 0], target[i][mask[i] == 0]) for i in range(len(output))]
+    return torch.mean(torch.stack(loss))
 
 def crop_data_target_sofa(database, vital, target_dict, static_dict, mode):
 
