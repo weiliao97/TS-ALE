@@ -163,7 +163,7 @@ if __name__ == "__main__":
     keys_sim = [i[0] for i in keys]
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
 
-    for col_cnt in [5, 10, 20, 30, 40, 50]:
+    for col_cnt in [10, 20, 30, 40, 50]:
         args.col_count = col_cnt 
         if args.use_random:
             workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' 
