@@ -157,7 +157,7 @@ if __name__ == "__main__":
 
     if args.model_name == 'TCN':
         model = models.TemporalConv(num_inputs=input_dim, num_channels=args.num_channels,
-                                    kernel_size=args.kernel_size, dropout=args.dropout)
+                                    kernel_size=args.kernel_size, dropout=args.dropout, output_class=1)
     elif args.model_name == 'RNN':
         model = models.RecurrentModel(cell=args.rnn_type, input_dim = input_dim, hidden_dim=args.hidden_dim, layer_dim=args.layer_dim, \
                                     output_dim=1, dropout_prob=args.dropout, idrop=args.idrop)
