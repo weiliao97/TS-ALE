@@ -238,9 +238,6 @@ if __name__ == "__main__":
        
 
                 loss = utils.mse_maskloss(sofa_p, target.to(device), key_mask.to(device))
-                if args.regularization == 'l1':
-                    l1_penalty = utils.calculate_l1(model)
-                    loss = loss + 0.001*l1_penalty
                 loss.backward()
                 model_opt.step()
 
