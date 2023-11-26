@@ -138,14 +138,6 @@ if __name__ == "__main__":
     true_ind = target_index[args.infer_ind]
     args.bucket_size = bucket_sizes[args.infer_ind]
         
-    if args.use_random:
-        workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' 
-    elif args.use_reverse:
-        workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'reverse' 
-    else: 
-        workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind]
-        
-    utils.creat_checkpoint_folder(base + workname, 'params.json', vars(args))
     train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', true_ind)
     dev_head, dev_sofa, dev_id, dev_target =  utils.crop_data_target(dev_vital , mimic_target, mimic_static, 'dev', true_ind)
     test_head, test_sofa, test_id, test_target =  utils.crop_data_target(test_vital, mimic_target, mimic_static, 'test', true_ind)
@@ -170,261 +162,272 @@ if __name__ == "__main__":
     keys = list(col_means.keys())
     keys_sim = [i[0] for i in keys]
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
-    if not args.use_random: 
-        if args.use_reverse: 
-            print('Sample reverse cols to zero')
-            ale_df.sort_values('ale', ascending=True, inplace=True)
-            col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
-            col_to_zero = [name_col[c] for c in col_list]  
+
+    for col_cnt in [5, 10, 20, 30, 40, 50]:
+        args.col_count = col_cnt 
+        if args.use_random:
+            workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' 
+        elif args.use_reverse:
+            workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'reverse' 
         else: 
-            print('Use ALE to zero cols')
-            ale_df.sort_values('ale', ascending=False, inplace=True)
-            col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
-            col_to_zero = [name_col[c] for c in col_list]
+            workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind]
+            
+        utils.creat_checkpoint_folder(base + workname, 'params.json', vars(args))
+        if not args.use_random: 
+            if args.use_reverse: 
+                print('Sample reverse cols to zero')
+                ale_df.sort_values('ale', ascending=True, inplace=True)
+                col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
+                col_to_zero = [name_col[c] for c in col_list]  
+            else: 
+                print('Use ALE to zero cols')
+                ale_df.sort_values('ale', ascending=False, inplace=True)
+                col_list = ale_df.iloc[:args.col_count, :]['col'].to_list()
+                col_to_zero = [name_col[c] for c in col_list]
 
-    else: 
-        print('Randomly zero cols')
-        # load what was actually removed during training 
-        col_info_dir = args.model_path.split('/')[0]
-        with open(base + col_info_dir + 'cols_dopped', 'rb') as fp:
-            col_to_zero = pickle.load(fp)
-        # col_to_zero = random.choices(var_inds, k=args.col_count)
-        print(col_to_zero)
+        else: 
+            print('Randomly zero cols')
+            # load what was actually removed during training 
+            col_info_dir = args.model_path.split('/')[0]
+            with open(base + col_info_dir + 'cols_dopped', 'rb') as fp:
+                col_to_zero = pickle.load(fp)
+            # col_to_zero = random.choices(var_inds, k=args.col_count)
+            print(col_to_zero)
 
-    rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
+        rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
 
-    train_head = utils.drop_col(train_head, rows_to_zero)
-    dev_head = utils.drop_col(dev_head, rows_to_zero)
-    test_head = utils.drop_col(test_head, rows_to_zero)
-    train_head_e= utils.drop_col(train_head_e, rows_to_zero)
-    dev_head_e = utils.drop_col(dev_head_e, rows_to_zero)
-    test_head_e = utils.drop_col(test_head_e, rows_to_zero)
-    
-    # get representations
-    oc = 1 if args.task_name == 'sofa' else 2
-    if args.model_name == 'TCN':
-        train_encode, dev_encode, test_encode = utils.get_tcn_encode(args, train_head, dev_head, test_head, base + args.model_path, output_class=oc)
-        train_encode_e, dev_encode_e, test_encode_e = utils.get_tcn_encode(args, train_head_e, dev_head_e, test_head_e, base + args.model_path, output_class=oc)
-    elif args.model_name == "Transformer":
-        train_encode, dev_encode, test_encode = utils.get_trans_encode(args, train_head, dev_head, test_head, base + args.model_path, output_class=oc)
-        train_encode_e, dev_encode_e, test_encode_e = utils.get_trans_encode(args, train_head_e, dev_head_e, test_head_e, base + args.model_path, output_class=oc)
-    elif args.model_name == "LSTM":
-        train_encode, dev_encode, test_encode = utils.get_lstm_encode(args, train_head, dev_head, test_head, base + args.model_path, output_class=oc)
-        train_encode_e, dev_encode_e, test_encode_e = utils.get_lstm_encode(args, train_head_e, dev_head_e, test_head_e, base + args.model_path, output_class=oc)
-    else:
-        raise ValueError('Model name not supported')
-
-
-    trainval_data = train_encode + dev_encode
-    # read dimension is dependent on encode dimension
-    encode_dim = train_encode[0].shape[0]
-    # crossval dataloader
-    crossval_dataloader = prepare_data.get_huge_dataloader(args, train_encode_e, dev_encode_e, test_encode_e, train_target_e, dev_target_e, test_target_e)
-    
-    model = models.FCNet(num_inputs=encode_dim, num_channels=args.read_channels, 
-                         dropout=args.read_drop, reluslope=args.read_reluslope, 
-                         output_class=args.output_classes)
-    torch.save(model.state_dict(), '/content/start_weights.pt')
-    model.to(device)
-    best_loss = 1e4
-    best_acc = 0.5
-    best_diff = 0.1
-
-    # loss fn and optimizer
-    ce_loss = torch.nn.CrossEntropyLoss()
-    model_opt = torch.optim.Adam(model.parameters(), lr=args.lr)
-
-    for c_fold, (train_index, test_index) in enumerate(kf.split(trainval_data)):
-        best_loss = 1e4
-        patience = 0
-        if c_fold >=1:
-            model.load_state_dict(torch.load('/content/start_weights.pt'))
-        print('Starting Fold %d'%c_fold)
-        print("TRAIN:", len(train_index), "TEST:", len(test_index))
-
-        train_cv, dev_cv, train_labelcv, dev_labelcv = utils.get_cv_data(train_encode, dev_encode, np.asarray(train_target), np.asarray(dev_target), train_index, test_index)
-        print('Compiled another CV data')
-        train_dataloader, dev_dataloader, test_dataloader = prepare_data.get_data_loader(args, train_cv, dev_cv, test_encode, train_labelcv, \
-                                                                                            dev_labelcv, test_target)
-
-        ctype, count= np.unique(dev_labelcv, return_counts=True)
-        total_dev_samples = len(dev_labelcv)
-        weights_per_class = torch.FloatTensor([ total_dev_samples / k / len(ctype) for k in count]).to(device)
-        ce_val_loss = nn.CrossEntropyLoss(weight = weights_per_class)
-
-        for j in  range(args.epochs):
-            model.train()
-            sofa_list = []
-            sofap_list = []
-            loss_t = []
-            loss_to = []
-
-            for vitals, target, key_mask in train_dataloader:
-                # print(label.shape)
-                model_opt.zero_grad()
-                # ti_data = Variable(ti.float().to(device))
-                td_data = vitals.to(device) # (6, 182, 24)
-                sofa = target.to(device) #(6, )
-                key_mask = key_mask.to(device)
-                # tgt_mask = model.get_tgt_mask(td_data.shape[-1]).to(device)
-                sofa_p = model(td_data)
-                pred  = torch.stack([sofa_p[i][key_mask[i]==0].mean(dim=-2) for i in range(len(sofa_p))])
-                loss = ce_loss(pred, sofa.squeeze(-1))
-                loss.backward()
-                model_opt.step()
-
-                sofa_list.append(sofa)
-                sofap_list.append(pred)
-                loss_t.append(loss)
-
-            train_acc = utils.cal_acc(sofap_list, sofa_list)
-            print('Train acc is %.2f%%'%(train_acc*100))
-
-            loss_avg = ce_loss(torch.concat(sofap_list), torch.concat(sofa_list).squeeze(-1)).cpu().detach().item()
-            #  np.mean(torch.stack(loss_t, dim=0).cpu().detach().numpy())
-
-
-            model.eval()
-            y_list = []
-            y_pred_list = []
-            ti_list = []
-            td_list = []
-            # loss_val = []
-            with torch.no_grad():  # validation does not require gradient
-
-                for vitals, target, key_mask in dev_dataloader:
-                    # ti_test = Variable(torch.FloatTensor(ti)).to(device)
-                    td_test = vitals.float().to(device)
-                    sofa_t = target.long().to(device)
-                    key_mask = key_mask.to(device)
-
-                    sofap_t = model(td_test)
-
-                    pred  = torch.stack([sofap_t[i][key_mask[i]==0].mean(dim=-2) for i in range(len(sofa_t))])
-                    # loss_v = ce_val_loss(pred, sofa_t.squeeze(-1))
-
-                    y_list.append(sofa_t)
-                    y_pred_list.append(pred)
-                    # loss_val.append(loss_v)
-
-            loss_te = ce_val_loss(torch.concat(y_pred_list), torch.concat(y_list).squeeze(-1)).cpu().numpy().item()
-            # np.mean(torch.stack(loss_val, dim=0).cpu().detach().numpy())
-            val_acc = utils.cal_acc(y_pred_list, y_list)
-
-            if args.cal_pos_acc == True:
-                val_pos_acc = utils.cal_pos_acc(y_pred_list, y_list, pos_ind = 1)
-                print('Validation pos acc is %.2f%%'%(val_pos_acc*100))
-                diff = abs(val_pos_acc - val_acc)
-                if diff < best_diff:
-                    print('best diff is %.2f%%'%(diff*100))
-                    torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_diff.pt')
-                    best_diff = diff
-
-
-            print('Validation acc is %.2f%%'%(val_acc*100))
-
-            if loss_te < best_loss:
-                best_loss = loss_te
-                patience = 0
-                best_loss = loss_te
-                #run["train/loss"].log(loss_avg)
-                torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_loss.pt')
-            else:
-                patience +=1
-                if patience >=args.patience:
-                    print('Start next fold')
-                    break
-            if val_acc > best_acc:
-                best_acc = val_acc
-                torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_acc.pt')
-            print('Epoch %d, : Train loss is %.4f, validation loss is %.4f' %(j, loss_avg, loss_te))
-        break
-
-
-    #
-    sm = nn.Softmax(dim=1)
-    weights_file = glob.glob(base + workname + '/*.pt')
-    auc = []
-    crossval_auc = []
-    auc_df = pd.DataFrame(index=weights_file)
-    for w in weights_file:
-        model.load_state_dict(torch.load(w))
-        wname = w.split('/')[-1].split('.')[0]
-        model.to(device)
-        y_list, y_pred_list, td_list, loss_te, val_acc = utils.get_evalacc_results(model, test_dataloader)
-        fig = utils.plot_confusion_matrix(y_list, y_pred_list,
-                                        # label_x = ['Pred-White', 'Pred-Black\nAfrican American'], label_y = ['White', 'Black/African\nAmerican'], \
-                                        #   label_x = ['Pred-Female', 'Pred-Male'], label_y = ['Female', 'Male'], \
-                                    title='%s Prediction'%target_name[args.infer_ind])
-        fig.savefig(base + workname + '/cm_maps/' + '%s.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
-        pred = sm(torch.concat(y_pred_list))[:, 1].cpu().numpy()
-        fpr, tpr, thresholds = metrics.roc_curve(torch.concat(y_list).detach().cpu().numpy(),\
-                                                pred, pos_label=1)
-        # auc.append(metrics.auc(fpr, tpr))
-        auc_df.loc[w, 'auc'] = metrics.auc(fpr, tpr)
-        # plot auc and auprc
-        # y_list, y_pred_list, td_list, loss_te, val_acc = utils.get_evalacc_results(model, test_dataloader)
-        y_true = np.concatenate([i.cpu().detach().numpy() for i in y_list])
-        y_score =  np.concatenate([i.cpu().detach().numpy() for i in y_pred_list])
-        y_sig = np.stack([softmax(data) for data in y_score])
-        # # for race
-        # y_true_r = np.asarray([0 if i==1 else 1 for i in y_true])
-        auc_l, auc_h = utils.get_auc_ci(y_true, y_sig)
-        auc_df.loc[w, 'auc_l'] = auc_l
-        auc_df.loc[w, 'auc_h'] = auc_h
-
-
-        bc = BinaryClassification(y_true.squeeze(-1), y_sig[:,1], labels=["Class 1", "Class 2"])
-        # Figures
-        plt.figure(figsize=(5,5))
-        bc.plot_roc_curve(plot_threshold=False, x_text_margin = 0.01)
-        plt.title('ROC')
-        plt.savefig(base + workname + '/auc_plots/' + '%s_prc.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
-
-        plt.figure(figsize=(5,5))
-        bc.plot_precision_recall_curve(plot_threshold=False, x_text_margin = 0.01)
-        plt.title('PRC')
-        plt.savefig(base + workname + '/auc_plots/' + '%s_roc.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
-        plt.show()
-
-
-        # the crossvalidation
-        y_list, y_pred_list, td_list, loss_te, val_acc = utils.get_evalacc_results(model, crossval_dataloader)
-        fig = utils.plot_confusion_matrix(y_list, y_pred_list,
-                                        # label_x = ['Pred-White', 'Pred-Black\nAfrican American'], label_y = ['White', 'Black/African\nAmerican'], \
-                                        #   label_x = ['Pred-', 'Pred-Male'], label_y = ['Female', 'Male'], \
-                                    title='%s Prediction'%target_name[args.infer_ind])
-        fig.savefig(base + workname + '/cm_maps_cv/' + '%s.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
-        pred = sm(torch.concat(y_pred_list))[:, 1].cpu().numpy()
-        fpr, tpr, thresholds = metrics.roc_curve(torch.concat(y_list).detach().cpu().numpy(),\
-                                                pred, pos_label=1)
-        # crossval_auc.append(metrics.auc(fpr, tpr))
-        auc_df.loc[w, 'auc_cv'] = metrics.auc(fpr, tpr)
+        train_head = utils.drop_col(train_head, rows_to_zero)
+        dev_head = utils.drop_col(dev_head, rows_to_zero)
+        test_head = utils.drop_col(test_head, rows_to_zero)
+        train_head_e= utils.drop_col(train_head_e, rows_to_zero)
+        dev_head_e = utils.drop_col(dev_head_e, rows_to_zero)
+        test_head_e = utils.drop_col(test_head_e, rows_to_zero)
         
+        # get representations
+        oc = 1 if args.task_name == 'sofa' else 2
+        if args.model_name == 'TCN':
+            train_encode, dev_encode, test_encode = utils.get_tcn_encode(args, train_head, dev_head, test_head, base + args.model_path, output_class=oc)
+            train_encode_e, dev_encode_e, test_encode_e = utils.get_tcn_encode(args, train_head_e, dev_head_e, test_head_e, base + args.model_path, output_class=oc)
+        elif args.model_name == "Transformer":
+            train_encode, dev_encode, test_encode = utils.get_trans_encode(args, train_head, dev_head, test_head, base + args.model_path, output_class=oc)
+            train_encode_e, dev_encode_e, test_encode_e = utils.get_trans_encode(args, train_head_e, dev_head_e, test_head_e, base + args.model_path, output_class=oc)
+        elif args.model_name == "LSTM":
+            train_encode, dev_encode, test_encode = utils.get_lstm_encode(args, train_head, dev_head, test_head, base + args.model_path, output_class=oc)
+            train_encode_e, dev_encode_e, test_encode_e = utils.get_lstm_encode(args, train_head_e, dev_head_e, test_head_e, base + args.model_path, output_class=oc)
+        else:
+            raise ValueError('Model name not supported')
 
-        # plot auc and auprc
-        # y_list, y_pred_list, td_list, loss_te, val_acc = utils.get_evalacc_results(model, test_dataloader)
-        y_true = np.concatenate([i.cpu().detach().numpy() for i in y_list])
-        y_score =  np.concatenate([i.cpu().detach().numpy() for i in y_pred_list])
-        y_sig = np.stack([softmax(data) for data in y_score])
-        # # for race
-        # y_true_r = np.asarray([0 if i==1 else 1 for i in y_true])
-        auc_l, auc_h = utils.get_auc_ci(y_true, y_sig)
-        auc_df.loc[w, 'auc_cv_l'] = auc_l
-        auc_df.loc[w, 'auc_cv_h'] = auc_h
 
-        bc = BinaryClassification(y_true.squeeze(-1), y_sig[:,1], labels=["Class 1", "Class 2"])
-        # Figures
-        plt.figure(figsize=(5,5))
-        bc.plot_roc_curve(plot_threshold=False, x_text_margin = 0.01)
-        plt.title('ROC')
-        plt.savefig(base + workname + '/auc_plots_cv/' + '%s_prc.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
+        trainval_data = train_encode + dev_encode
+        # read dimension is dependent on encode dimension
+        encode_dim = train_encode[0].shape[0]
+        # crossval dataloader
+        crossval_dataloader = prepare_data.get_huge_dataloader(args, train_encode_e, dev_encode_e, test_encode_e, train_target_e, dev_target_e, test_target_e)
+        
+        model = models.FCNet(num_inputs=encode_dim, num_channels=args.read_channels, 
+                            dropout=args.read_drop, reluslope=args.read_reluslope, 
+                            output_class=args.output_classes)
+        torch.save(model.state_dict(), '/content/start_weights.pt')
+        model.to(device)
+        best_loss = 1e4
+        best_acc = 0.5
+        best_diff = 0.1
 
-        plt.figure(figsize=(5,5))
-        bc.plot_precision_recall_curve(plot_threshold=False, x_text_margin = 0.01)
-        plt.title('PRC')
-        plt.savefig(base + workname + '/auc_plots_cv/' + '%s_roc.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
-        plt.show()
+        # loss fn and optimizer
+        ce_loss = torch.nn.CrossEntropyLoss()
+        model_opt = torch.optim.Adam(model.parameters(), lr=args.lr)
 
-    # save auc stats
-    auc_df.to_csv(base + workname + '/auc.csv')
+        for c_fold, (train_index, test_index) in enumerate(kf.split(trainval_data)):
+            best_loss = 1e4
+            patience = 0
+            if c_fold >=1:
+                model.load_state_dict(torch.load('/content/start_weights.pt'))
+            print('Starting Fold %d'%c_fold)
+            print("TRAIN:", len(train_index), "TEST:", len(test_index))
+
+            train_cv, dev_cv, train_labelcv, dev_labelcv = utils.get_cv_data(train_encode, dev_encode, np.asarray(train_target), np.asarray(dev_target), train_index, test_index)
+            print('Compiled another CV data')
+            train_dataloader, dev_dataloader, test_dataloader = prepare_data.get_data_loader(args, train_cv, dev_cv, test_encode, train_labelcv, \
+                                                                                                dev_labelcv, test_target)
+
+            ctype, count= np.unique(dev_labelcv, return_counts=True)
+            total_dev_samples = len(dev_labelcv)
+            weights_per_class = torch.FloatTensor([ total_dev_samples / k / len(ctype) for k in count]).to(device)
+            ce_val_loss = nn.CrossEntropyLoss(weight = weights_per_class)
+
+            for j in  range(args.epochs):
+                model.train()
+                sofa_list = []
+                sofap_list = []
+                loss_t = []
+                loss_to = []
+
+                for vitals, target, key_mask in train_dataloader:
+                    # print(label.shape)
+                    model_opt.zero_grad()
+                    # ti_data = Variable(ti.float().to(device))
+                    td_data = vitals.to(device) # (6, 182, 24)
+                    sofa = target.to(device) #(6, )
+                    key_mask = key_mask.to(device)
+                    # tgt_mask = model.get_tgt_mask(td_data.shape[-1]).to(device)
+                    sofa_p = model(td_data)
+                    pred  = torch.stack([sofa_p[i][key_mask[i]==0].mean(dim=-2) for i in range(len(sofa_p))])
+                    loss = ce_loss(pred, sofa.squeeze(-1))
+                    loss.backward()
+                    model_opt.step()
+
+                    sofa_list.append(sofa)
+                    sofap_list.append(pred)
+                    loss_t.append(loss)
+
+                train_acc = utils.cal_acc(sofap_list, sofa_list)
+                print('Train acc is %.2f%%'%(train_acc*100))
+
+                loss_avg = ce_loss(torch.concat(sofap_list), torch.concat(sofa_list).squeeze(-1)).cpu().detach().item()
+                #  np.mean(torch.stack(loss_t, dim=0).cpu().detach().numpy())
+
+
+                model.eval()
+                y_list = []
+                y_pred_list = []
+                ti_list = []
+                td_list = []
+                # loss_val = []
+                with torch.no_grad():  # validation does not require gradient
+
+                    for vitals, target, key_mask in dev_dataloader:
+                        # ti_test = Variable(torch.FloatTensor(ti)).to(device)
+                        td_test = vitals.float().to(device)
+                        sofa_t = target.long().to(device)
+                        key_mask = key_mask.to(device)
+
+                        sofap_t = model(td_test)
+
+                        pred  = torch.stack([sofap_t[i][key_mask[i]==0].mean(dim=-2) for i in range(len(sofa_t))])
+                        # loss_v = ce_val_loss(pred, sofa_t.squeeze(-1))
+
+                        y_list.append(sofa_t)
+                        y_pred_list.append(pred)
+                        # loss_val.append(loss_v)
+
+                loss_te = ce_val_loss(torch.concat(y_pred_list), torch.concat(y_list).squeeze(-1)).cpu().numpy().item()
+                # np.mean(torch.stack(loss_val, dim=0).cpu().detach().numpy())
+                val_acc = utils.cal_acc(y_pred_list, y_list)
+
+                if args.cal_pos_acc == True:
+                    val_pos_acc = utils.cal_pos_acc(y_pred_list, y_list, pos_ind = 1)
+                    print('Validation pos acc is %.2f%%'%(val_pos_acc*100))
+                    diff = abs(val_pos_acc - val_acc)
+                    if diff < best_diff:
+                        print('best diff is %.2f%%'%(diff*100))
+                        torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_diff.pt')
+                        best_diff = diff
+
+
+                print('Validation acc is %.2f%%'%(val_acc*100))
+
+                if loss_te < best_loss:
+                    best_loss = loss_te
+                    patience = 0
+                    best_loss = loss_te
+                    #run["train/loss"].log(loss_avg)
+                    torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_loss.pt')
+                else:
+                    patience +=1
+                    if patience >=args.patience:
+                        print('Start next fold')
+                        break
+                if val_acc > best_acc:
+                    best_acc = val_acc
+                    torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_acc.pt')
+                print('Epoch %d, : Train loss is %.4f, validation loss is %.4f' %(j, loss_avg, loss_te))
+            break
+
+
+        #
+        sm = nn.Softmax(dim=1)
+        weights_file = glob.glob(base + workname + '/*.pt')
+        auc = []
+        crossval_auc = []
+        auc_df = pd.DataFrame(index=weights_file)
+        for w in weights_file:
+            model.load_state_dict(torch.load(w))
+            wname = w.split('/')[-1].split('.')[0]
+            model.to(device)
+            y_list, y_pred_list, td_list, loss_te, val_acc = utils.get_evalacc_results(model, test_dataloader)
+            fig = utils.plot_confusion_matrix(y_list, y_pred_list,
+                                            # label_x = ['Pred-White', 'Pred-Black\nAfrican American'], label_y = ['White', 'Black/African\nAmerican'], \
+                                            #   label_x = ['Pred-Female', 'Pred-Male'], label_y = ['Female', 'Male'], \
+                                        title='%s Prediction'%target_name[args.infer_ind])
+            fig.savefig(base + workname + '/cm_maps/' + '%s.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
+            pred = sm(torch.concat(y_pred_list))[:, 1].cpu().numpy()
+            fpr, tpr, thresholds = metrics.roc_curve(torch.concat(y_list).detach().cpu().numpy(),\
+                                                    pred, pos_label=1)
+            # auc.append(metrics.auc(fpr, tpr))
+            auc_df.loc[w, 'auc'] = metrics.auc(fpr, tpr)
+            # plot auc and auprc
+            # y_list, y_pred_list, td_list, loss_te, val_acc = utils.get_evalacc_results(model, test_dataloader)
+            y_true = np.concatenate([i.cpu().detach().numpy() for i in y_list])
+            y_score =  np.concatenate([i.cpu().detach().numpy() for i in y_pred_list])
+            y_sig = np.stack([softmax(data) for data in y_score])
+            # # for race
+            # y_true_r = np.asarray([0 if i==1 else 1 for i in y_true])
+            auc_l, auc_h = utils.get_auc_ci(y_true, y_sig)
+            auc_df.loc[w, 'auc_l'] = auc_l
+            auc_df.loc[w, 'auc_h'] = auc_h
+
+
+            bc = BinaryClassification(y_true.squeeze(-1), y_sig[:,1], labels=["Class 1", "Class 2"])
+            # Figures
+            plt.figure(figsize=(5,5))
+            bc.plot_roc_curve(plot_threshold=False, x_text_margin = 0.01)
+            plt.title('ROC')
+            plt.savefig(base + workname + '/auc_plots/' + '%s_prc.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
+
+            plt.figure(figsize=(5,5))
+            bc.plot_precision_recall_curve(plot_threshold=False, x_text_margin = 0.01)
+            plt.title('PRC')
+            plt.savefig(base + workname + '/auc_plots/' + '%s_roc.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
+            plt.show()
+
+
+            # the crossvalidation
+            y_list, y_pred_list, td_list, loss_te, val_acc = utils.get_evalacc_results(model, crossval_dataloader)
+            fig = utils.plot_confusion_matrix(y_list, y_pred_list,
+                                            # label_x = ['Pred-White', 'Pred-Black\nAfrican American'], label_y = ['White', 'Black/African\nAmerican'], \
+                                            #   label_x = ['Pred-', 'Pred-Male'], label_y = ['Female', 'Male'], \
+                                        title='%s Prediction'%target_name[args.infer_ind])
+            fig.savefig(base + workname + '/cm_maps_cv/' + '%s.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
+            pred = sm(torch.concat(y_pred_list))[:, 1].cpu().numpy()
+            fpr, tpr, thresholds = metrics.roc_curve(torch.concat(y_list).detach().cpu().numpy(),\
+                                                    pred, pos_label=1)
+            # crossval_auc.append(metrics.auc(fpr, tpr))
+            auc_df.loc[w, 'auc_cv'] = metrics.auc(fpr, tpr)
+            
+
+            # plot auc and auprc
+            # y_list, y_pred_list, td_list, loss_te, val_acc = utils.get_evalacc_results(model, test_dataloader)
+            y_true = np.concatenate([i.cpu().detach().numpy() for i in y_list])
+            y_score =  np.concatenate([i.cpu().detach().numpy() for i in y_pred_list])
+            y_sig = np.stack([softmax(data) for data in y_score])
+            # # for race
+            # y_true_r = np.asarray([0 if i==1 else 1 for i in y_true])
+            auc_l, auc_h = utils.get_auc_ci(y_true, y_sig)
+            auc_df.loc[w, 'auc_cv_l'] = auc_l
+            auc_df.loc[w, 'auc_cv_h'] = auc_h
+
+            bc = BinaryClassification(y_true.squeeze(-1), y_sig[:,1], labels=["Class 1", "Class 2"])
+            # Figures
+            plt.figure(figsize=(5,5))
+            bc.plot_roc_curve(plot_threshold=False, x_text_margin = 0.01)
+            plt.title('ROC')
+            plt.savefig(base + workname + '/auc_plots_cv/' + '%s_prc.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
+
+            plt.figure(figsize=(5,5))
+            bc.plot_precision_recall_curve(plot_threshold=False, x_text_margin = 0.01)
+            plt.title('PRC')
+            plt.savefig(base + workname + '/auc_plots_cv/' + '%s_roc.eps'%wname, format='eps', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
+            plt.show()
+
+        # save auc stats
+        auc_df.to_csv(base + workname + '/auc.csv')
