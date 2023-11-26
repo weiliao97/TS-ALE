@@ -196,6 +196,9 @@ if __name__ == "__main__":
     train_head = utils.drop_col(train_head, rows_to_zero)
     dev_head = utils.drop_col(dev_head, rows_to_zero)
     test_head = utils.drop_col(test_head, rows_to_zero)
+    train_head_e= utils.drop_col(train_head_e, rows_to_zero)
+    dev_head_e = utils.drop_col(dev_head_e, rows_to_zero)
+    test_head_e = utils.drop_col(test_head_e, rows_to_zero)
     
     # get representations
     oc = 1 if args.task_name == 'sofa' else 2

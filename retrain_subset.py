@@ -11,6 +11,7 @@ date = today.strftime("%m%d")
 import models
 import prepare_retrain
 import utils
+import pickle 
 from sklearn.model_selection import KFold
 kf = KFold(n_splits=10, random_state=None, shuffle=False)
 mse_loss = nn.MSELoss()
@@ -144,6 +145,8 @@ if __name__ == "__main__":
     else: 
         print('Randomly zero cols')
         col_to_zero = random.choices(var_inds, k=args.col_count)
+        with open(base + workname + 'cols_dopped', 'wb') as fp:
+            pickle.dump(col_to_zero, fp)
         print(col_to_zero)
 
     rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
