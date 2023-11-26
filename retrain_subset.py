@@ -123,7 +123,7 @@ if __name__ == "__main__":
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
     
     for col_cnt in [5, 10, 20, 30, 40, 50]:
-        args.cl_count = col_cnt
+        args.col_count = col_cnt
         if args.use_random:
             workname = date + 'retrain_subset_%d'%args.col_count + '_' + 'random' 
         elif args.use_reverse:
