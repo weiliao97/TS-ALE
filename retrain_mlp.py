@@ -146,12 +146,12 @@ if __name__ == "__main__":
     test_head_e, test_sofa_e, test_id_e, test_target_e =  utils.crop_data_target_e(test_vital_e, eicu_target, eicu_static, 'test', true_ind)
 
     if args.use_sepsis3 == True:
-        train_head, train_sofa, train_id, train_target = utils.filter_sepsis(train_head, train_sofa, train_id, train_target)
-        dev_head, dev_sofa, dev_id, dev_target = utils.filter_sepsis(dev_head, dev_sofa, dev_id, dev_target)
-        test_head, test_sofa, test_id, test_target = utils.filter_sepsis(test_head, test_sofa, test_id, test_target)
-        train_head_e, train_sofa_e, train_id_e, train_target_e = utils.filter_sepsis_e(train_head_e, train_sofa_e, train_id_e, train_target_e)
-        dev_head_e, dev_sofa_e, dev_id_e, dev_target_e = utils.filter_sepsis_e(dev_head_e, dev_sofa_e, dev_id_e, dev_target_e)
-        test_head_e, test_sofa_e, test_id_e, test_target_e = utils.filter_sepsis_e(test_head_e, test_sofa_e, test_id_e, test_target_e)
+        train_head_or, train_sofa, train_id, train_target = utils.filter_sepsis(train_head, train_sofa, train_id, train_target)
+        dev_head_or, dev_sofa, dev_id, dev_target = utils.filter_sepsis(dev_head, dev_sofa, dev_id, dev_target)
+        test_head_or, test_sofa, test_id, test_target = utils.filter_sepsis(test_head, test_sofa, test_id, test_target)
+        train_head_e_or, train_sofa_e, train_id_e, train_target_e = utils.filter_sepsis_e(train_head_e, train_sofa_e, train_id_e, train_target_e)
+        dev_head_e_or, dev_sofa_e, dev_id_e, dev_target_e = utils.filter_sepsis_e(dev_head_e, dev_sofa_e, dev_id_e, dev_target_e)
+        test_head_e_or, test_sofa_e, test_id_e, test_target_e = utils.filter_sepsis_e(test_head_e, test_sofa_e, test_id_e, test_target_e)
 
     ale_df = pd.read_csv(base + args.ale_file)
     ale_df.rename(columns={"Unnamed: 0": "col"}, inplace=True)
@@ -196,12 +196,12 @@ if __name__ == "__main__":
 
         rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
 
-        train_head = utils.drop_col(train_head, rows_to_zero)
-        dev_head = utils.drop_col(dev_head, rows_to_zero)
-        test_head = utils.drop_col(test_head, rows_to_zero)
-        train_head_e= utils.drop_col(train_head_e, rows_to_zero)
-        dev_head_e = utils.drop_col(dev_head_e, rows_to_zero)
-        test_head_e = utils.drop_col(test_head_e, rows_to_zero)
+        train_head = utils.drop_col(train_head_or, rows_to_zero)
+        dev_head = utils.drop_col(dev_head_or, rows_to_zero)
+        test_head = utils.drop_col(test_head_or, rows_to_zero)
+        train_head_e= utils.drop_col(train_head_e_or, rows_to_zero)
+        dev_head_e = utils.drop_col(dev_head_e_or, rows_to_zero)
+        test_head_e = utils.drop_col(test_head_e_or, rows_to_zero)
         
         # get representations
         oc = 1 if args.task_name == 'sofa' else 2
