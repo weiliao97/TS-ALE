@@ -76,9 +76,6 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str, default='test_read_models', help="name of checkpoint model")
     # Parse and return arguments
     args = parser.parse_args()
-  
-    workname = date + '_' + args.database + '_' + args.model_name + '_' + args.checkpoint
-    utils.creat_checkpoint_folder('./checkpoints/' + workname, 'params.json', vars(args))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     base = '/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/'
 
@@ -111,6 +108,8 @@ if __name__ == "__main__":
         workname = date + 'retrain_subset_%d'%args.col_count + '_' + 'reverse' 
     else: 
         workname = date + 'retrain_subset_%d'%args.col_count 
+    
+    utils.creat_checkpoint_folder(base + workname, 'params.json', vars(args))
 
     train_head, train_static, train_sofa, train_id = utils.crop_data_target_sofa(args.database, train_vital, mimic_target, mimic_static, 'train')
     dev_head, dev_static, dev_sofa, dev_id = utils.crop_data_target_sofa(args.database, dev_vital, mimic_target, mimic_static, 'dev')
