@@ -139,11 +139,11 @@ if __name__ == "__main__":
     args.bucket_size = bucket_sizes[args.infer_ind]
         
     if args.use_random:
-        workname = date + 'retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' 
+        workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' 
     elif args.use_reverse:
-        workname = date + 'retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'reverse' 
+        workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'reverse' 
     else: 
-        workname = date + 'retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind]
+        workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind]
         
     utils.creat_checkpoint_folder(base + workname, 'params.json', vars(args))
     train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', true_ind)
@@ -184,7 +184,11 @@ if __name__ == "__main__":
 
     else: 
         print('Randomly zero cols')
-        col_to_zero = random.choices(var_inds, k=args.col_count)
+        # load what was actually removed during training 
+        col_info_dir = args.model_path.split('/')[0]
+        with open(base + col_info_dir + 'cols_dopped', 'rb') as fp:
+            col_to_zero = pickle.load(fp)
+        # col_to_zero = random.choices(var_inds, k=args.col_count)
         print(col_to_zero)
 
     rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
@@ -196,14 +200,14 @@ if __name__ == "__main__":
     # get representations
     oc = 1 if args.task_name == 'sofa' else 2
     if args.model_name == 'TCN':
-        train_encode, dev_encode, test_encode = utils.get_tcn_encode(args, train_head, dev_head, test_head, args.model_path, output_class=oc)
-        train_encode_e, dev_encode_e, test_encode_e = utils.get_tcn_encode(args, train_head_e, dev_head_e, test_head_e, args.model_path, output_class=oc)
+        train_encode, dev_encode, test_encode = utils.get_tcn_encode(args, train_head, dev_head, test_head, base + args.model_path, output_class=oc)
+        train_encode_e, dev_encode_e, test_encode_e = utils.get_tcn_encode(args, train_head_e, dev_head_e, test_head_e, base + args.model_path, output_class=oc)
     elif args.model_name == "Transformer":
-        train_encode, dev_encode, test_encode = utils.get_trans_encode(args, train_head, dev_head, test_head, args.model_path, output_class=oc)
-        train_encode_e, dev_encode_e, test_encode_e = utils.get_trans_encode(args, train_head_e, dev_head_e, test_head_e, args.model_path, output_class=oc)
+        train_encode, dev_encode, test_encode = utils.get_trans_encode(args, train_head, dev_head, test_head, base + args.model_path, output_class=oc)
+        train_encode_e, dev_encode_e, test_encode_e = utils.get_trans_encode(args, train_head_e, dev_head_e, test_head_e, base + args.model_path, output_class=oc)
     elif args.model_name == "LSTM":
-        train_encode, dev_encode, test_encode = utils.get_lstm_encode(args, train_head, dev_head, test_head, args.model_path, output_class=oc)
-        train_encode_e, dev_encode_e, test_encode_e = utils.get_lstm_encode(args, train_head_e, dev_head_e, test_head_e, args.model_path, output_class=oc)
+        train_encode, dev_encode, test_encode = utils.get_lstm_encode(args, train_head, dev_head, test_head, base + args.model_path, output_class=oc)
+        train_encode_e, dev_encode_e, test_encode_e = utils.get_lstm_encode(args, train_head_e, dev_head_e, test_head_e, base + args.model_path, output_class=oc)
     else:
         raise ValueError('Model name not supported')
 
