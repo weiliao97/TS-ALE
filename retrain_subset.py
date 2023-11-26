@@ -103,14 +103,14 @@ if __name__ == "__main__":
     # true_ind = target_index[args.infer_ind]
     # args.bucket_size = bucket_sizes[args.infer_ind]
 
-    train_head, train_static, train_sofa, train_id = utils.crop_data_target_sofa(args.database, train_vital, mimic_target, mimic_static, 'train')
-    dev_head, dev_static, dev_sofa, dev_id = utils.crop_data_target_sofa(args.database, dev_vital, mimic_target, mimic_static, 'dev')
-    test_head, test_static, test_sofa, test_id = utils.crop_data_target_sofa(args.database, test_vital, mimic_target, mimic_static, 'test')
+    train_head_or, train_static, train_sofa, train_id = utils.crop_data_target_sofa(args.database, train_vital, mimic_target, mimic_static, 'train')
+    dev_head_or, dev_static, dev_sofa, dev_id = utils.crop_data_target_sofa(args.database, dev_vital, mimic_target, mimic_static, 'dev')
+    test_head_or, test_static, test_sofa, test_id = utils.crop_data_target_sofa(args.database, test_vital, mimic_target, mimic_static, 'test')
 
     if args.use_sepsis3 == True:
-        train_head, train_static, train_sofa, train_id = utils.filter_sepsis_sofa(args.database, train_head, train_static, train_sofa, train_id)
-        dev_head, dev_static, dev_sofa, dev_id = utils.filter_sepsis_sofa(args.database, dev_head, dev_static, dev_sofa, dev_id)
-        test_head, test_static, test_sofa, test_id = utils.filter_sepsis_sofa(args.database, test_head, test_static, test_sofa, test_id)
+        train_head_or, train_static, train_sofa, train_id = utils.filter_sepsis_sofa(args.database, train_head_or, train_static, train_sofa, train_id)
+        dev_head_or, dev_static, dev_sofa, dev_id = utils.filter_sepsis_sofa(args.database, dev_head_or, dev_static, dev_sofa, dev_id)
+        test_head_or, test_static, test_sofa, test_id = utils.filter_sepsis_sofa(args.database, test_head_or, test_static, test_sofa, test_id)
 
     ale_df = pd.read_csv(base + args.ale_file)
     ale_df.rename(columns={"Unnamed: 0": "col"}, inplace=True)
@@ -153,9 +153,9 @@ if __name__ == "__main__":
 
         rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
 
-        train_head = utils.drop_col(train_head, rows_to_zero)
-        dev_head = utils.drop_col(dev_head, rows_to_zero)
-        test_head = utils.drop_col(test_head, rows_to_zero)
+        train_head = utils.drop_col(train_head_or, rows_to_zero)
+        dev_head = utils.drop_col(dev_head_or, rows_to_zero)
+        test_head = utils.drop_col(test_head_or, rows_to_zero)
         
         input_dim =train_head[0].shape[0]
         static_dim = train_static[0].shape[0]
