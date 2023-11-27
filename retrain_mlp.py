@@ -138,20 +138,20 @@ if __name__ == "__main__":
     true_ind = target_index[args.infer_ind]
     args.bucket_size = bucket_sizes[args.infer_ind]
         
-    train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', true_ind)
-    dev_head, dev_sofa, dev_id, dev_target =  utils.crop_data_target(dev_vital , mimic_target, mimic_static, 'dev', true_ind)
-    test_head, test_sofa, test_id, test_target =  utils.crop_data_target(test_vital, mimic_target, mimic_static, 'test', true_ind)
-    train_head_e, train_sofa_e, train_id_e, train_target_e =  utils.crop_data_target_e(train_vital_e, eicu_target, eicu_static, 'train', true_ind)
-    dev_head_e, dev_sofa_e, dev_id_e, dev_target_e =  utils.crop_data_target_e(dev_vital_e, eicu_target, eicu_static, 'dev', true_ind)
-    test_head_e, test_sofa_e, test_id_e, test_target_e =  utils.crop_data_target_e(test_vital_e, eicu_target, eicu_static, 'test', true_ind)
+    train_head_or, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', true_ind)
+    dev_head_or, dev_sofa, dev_id, dev_target =  utils.crop_data_target(dev_vital , mimic_target, mimic_static, 'dev', true_ind)
+    test_head_or, test_sofa, test_id, test_target =  utils.crop_data_target(test_vital, mimic_target, mimic_static, 'test', true_ind)
+    train_head_e_or, train_sofa_e, train_id_e, train_target_e =  utils.crop_data_target_e(train_vital_e, eicu_target, eicu_static, 'train', true_ind)
+    dev_head_e_or, dev_sofa_e, dev_id_e, dev_target_e =  utils.crop_data_target_e(dev_vital_e, eicu_target, eicu_static, 'dev', true_ind)
+    test_head_e_or, test_sofa_e, test_id_e, test_target_e =  utils.crop_data_target_e(test_vital_e, eicu_target, eicu_static, 'test', true_ind)
 
     if args.use_sepsis3 == True:
-        train_head_or, train_sofa, train_id, train_target = utils.filter_sepsis(train_head, train_sofa, train_id, train_target)
-        dev_head_or, dev_sofa, dev_id, dev_target = utils.filter_sepsis(dev_head, dev_sofa, dev_id, dev_target)
-        test_head_or, test_sofa, test_id, test_target = utils.filter_sepsis(test_head, test_sofa, test_id, test_target)
-        train_head_e_or, train_sofa_e, train_id_e, train_target_e = utils.filter_sepsis_e(train_head_e, train_sofa_e, train_id_e, train_target_e)
-        dev_head_e_or, dev_sofa_e, dev_id_e, dev_target_e = utils.filter_sepsis_e(dev_head_e, dev_sofa_e, dev_id_e, dev_target_e)
-        test_head_e_or, test_sofa_e, test_id_e, test_target_e = utils.filter_sepsis_e(test_head_e, test_sofa_e, test_id_e, test_target_e)
+        train_head_or, train_sofa, train_id, train_target = utils.filter_sepsis(train_head_or, train_sofa, train_id, train_target)
+        dev_head_or, dev_sofa, dev_id, dev_target = utils.filter_sepsis(dev_head_or, dev_sofa, dev_id, dev_target)
+        test_head_or, test_sofa, test_id, test_target = utils.filter_sepsis(test_head_or, test_sofa, test_id, test_target)
+        train_head_e_or, train_sofa_e, train_id_e, train_target_e = utils.filter_sepsis_e(train_head_e_or, train_sofa_e, train_id_e, train_target_e)
+        dev_head_e_or, dev_sofa_e, dev_id_e, dev_target_e = utils.filter_sepsis_e(dev_head_e_or, dev_sofa_e, dev_id_e, dev_target_e)
+        test_head_e_or, test_sofa_e, test_id_e, test_target_e = utils.filter_sepsis_e(test_head_e_or, test_sofa_e, test_id_e, test_target_e)
 
     ale_df = pd.read_csv(base + args.ale_file)
     ale_df.rename(columns={"Unnamed: 0": "col"}, inplace=True)
@@ -164,6 +164,8 @@ if __name__ == "__main__":
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
 
     for col_cnt in [5, 10, 20, 30, 40, 50]:
+        args.model_path = '1126_retrain_subset_age_%d_reverse/fold0_best_loss.pt'%col_cnt
+        print(args.model_path)
         args.col_count = col_cnt 
         if args.use_random:
             workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' 
