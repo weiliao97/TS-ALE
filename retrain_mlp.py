@@ -163,8 +163,9 @@ if __name__ == "__main__":
     keys_sim = [i[0] for i in keys]
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
 
-    for col_cnt in [5, 10, 20, 30, 40, 50]:
+    for col_cnt in [10, 20, 30, 40, 50]:
         args.model_path = '1126_retrain_subset_age_%d_reverse/fold0_best_loss.pt'%col_cnt
+        args.input_dim = 200 - col_cnt*2
         print(args.model_path)
         args.col_count = col_cnt 
         if args.use_random:
