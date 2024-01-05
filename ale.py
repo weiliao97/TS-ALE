@@ -127,7 +127,6 @@ def get_1d_ale(model, test_head, index, bins, monte_carlo_ratio, monte_carlo_rep
 
 def data_piece_offset(train_set_rep, index, record_flag, offset):
     train_set_piece = []
-    all_features = []
     # when >=164# something here needs to be fixed
     # INDEX 162, ph urine mean, last numerical
     # if index<=162 else 0
@@ -136,8 +135,7 @@ def data_piece_offset(train_set_rep, index, record_flag, offset):
         if len(true_record) >= 1:
             for rec_ind in true_record:
                 train_set_piece.append(record[:, :rec_ind+1])
-                all_features.append(record[index, :rec_ind+1])
-    return train_set_piece, np.concatenate(all_features)
+    return train_set_piece
 
 def get_1d_ale_cat(model, test_head, index, monte_carlo_ratio, monte_carlo_rep, record_flag=1, offset=1):
     mc_replicates = np.asarray(
@@ -152,7 +150,7 @@ def get_1d_ale_cat(model, test_head, index, monte_carlo_ratio, monte_carlo_rep, 
     mean_effects = []
     for k, rep in enumerate(mc_replicates):
         train_set_rep = [test_head[i] for i in rep]
-        train_set_piece, _ = data_piece_offset(train_set_rep, index, record_flag=record_flag, offset=offset)
+        train_set_piece = data_piece_offset(train_set_rep, index, record_flag=record_flag, offset=offset)
 
         piece_shape = [train_set_piece[i].shape[1] for i in range(len(train_set_piece))]
         # piece_hist, _ = np.histogram(piece_shape, bins = range(0, 219))

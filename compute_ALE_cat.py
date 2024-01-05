@@ -153,10 +153,11 @@ if __name__ == "__main__":
     ale_df = pd.DataFrame(index=keys_sim)
     ale_df['ale'] = ''
     for i, var_ind in enumerate(var_inds):
-        ind = var_ind//2 if var_ind <= 108 else (var_ind-6)//2
-        key = keys_sim[ind]
+        # ind = var_ind//2 if var_ind <= 108 else (var_ind-6)//2
+        key = keys_sim[i]
         mean_effects = ale.get_1d_ale_cat(model_c, test_head, index=var_ind, monte_carlo_ratio=0.1, monte_carlo_rep=50, record_flag=1, offset=offsets[i])
-        ale_df.loc[key, 'ale'] = np.concatenate(mean_effects).mean()
-        ale_df.to_csv('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname + '/ale_cat.csv')
-    
+        if len(mean_effects) > 0:
+            ale_df.loc[key, 'ale'] = np.concatenate(mean_effects).mean()
+            ale_df.to_csv('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname + '/ale_cat.csv')
+        
 
