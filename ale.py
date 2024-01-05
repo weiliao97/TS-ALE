@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import torch
+import copy 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -190,6 +191,86 @@ def get_1d_ale_cat(model, test_head, index, monte_carlo_ratio, monte_carlo_rep, 
 
         # index_groupby = pd.DataFrame({"index": np.concatenate(indices_t, axis=0), \
         #                         "effects": np.concatenate(effects_t, axis=0).squeeze(-1)}).groupby("index")
+        mean_effects.append(np.concatenate(effects_t, axis=0))
+
+    return mean_effects
+
+
+def data_piece_contin(train_set_rep, index, record_flag):
+    train_set_piece = []
+    train_set_piece_z = []
+    all_features = []
+    for record in train_set_rep:
+        true_record = np.where((record[index, :-1] == 1) & (record[index, 1:] == 0))[0]
+        if record[index, -1] == 1:
+            np.append(true_record, len(record[index, :])-1)
+        one_indices = np.where(record[index, :] == 1)[0]
+        # Group consecutive indices into ranges
+        ranges = np.split(one_indices, np.where(np.diff(one_indices) != 1)[0] + 1)
+        # Extract start and end indices from each range
+        if len(true_record) >= 1:
+            start_end = [(range[0], range[-1]) for range in ranges]
+            for i, rec_ind in enumerate(true_record):
+                record_seg = record[:, :rec_ind+1]
+                train_set_piece.append(record_seg)
+                record_c = copy.deepcopy(record_seg)
+                record_c[index, start_end[i][0]:start_end[i][1]+1] = 0
+                train_set_piece_z.append(record_c)
+    return train_set_piece, train_set_piece_z
+
+def get_1d_ale_contin(model, test_head, index, monte_carlo_ratio, monte_carlo_rep, record_flag=1):
+    mc_replicates = np.asarray(
+                    [
+                        [
+                            np.random.choice(range(len(test_head)))
+                            for _ in range(int(monte_carlo_ratio * len(test_head)))
+                        ]
+                        for _ in range(monte_carlo_rep)
+                    ])
+
+    mean_effects = []
+    for k, rep in enumerate(mc_replicates):
+        train_set_rep = [test_head[i] for i in rep]
+        train_set_piece, train_set_piece_z = data_piece_contin(train_set_rep, index, record_flag=record_flag)
+
+        piece_shape = [train_set_piece[i].shape[1] for i in range(len(train_set_piece))]
+
+        len_dict = {}
+        len_dict_z = {}
+        # key: lenth, value: a list of pieces 
+        for k, j in enumerate(piece_shape):
+            if j in len_dict.keys():
+                len_dict[j].append(train_set_piece[k])
+                len_dict_z[j].append(train_set_piece_z[k])
+            else: 
+                len_dict[j] = [train_set_piece[k]]
+                len_dict_z[j] = [train_set_piece_z[k]]
+
+        piece_3d = []
+        piece_3d_z = []
+        for i in len_dict.keys():
+            piece_3d.append(np.stack(len_dict[i]))
+            piece_3d_z.append(np.stack(len_dict_z[i]))
+
+
+        model.eval()
+        effects_t = []
+
+        for i, piece in enumerate(piece_3d): 
+        # [(200, 5), (200, 6), (200, 7), (200, 5)]
+        # train_set_piece could be 20000 pieces, given there are 100 repetitions 
+        # gdigitalize using [(6, 200, 1), (10, 200, 5) ...] piece_3d, last dim is lenth 
+            # indices = np.clip(
+            #         np.digitize(piece[:, index, -1], quantiles, right=True) - 1, 0, None
+            #     )
+            predictions = []
+            predictions.append(model(torch.FloatTensor(piece_3d_z[i]).to(device)))  # (6, 1, 1) or (6, 5, 1) depending on the length 
+            predictions.append(model(torch.FloatTensor(piece).to(device)))
+            # The individual effects.
+            # (139, 60, 1) diffrent indices  (139)
+            effects = np.subtract(predictions[1].cpu().detach().numpy(), predictions[0].cpu().detach().numpy())
+            effects_t.append(effects[:, 0])
+
         mean_effects.append(np.concatenate(effects_t, axis=0))
 
     return mean_effects
