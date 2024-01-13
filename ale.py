@@ -104,12 +104,12 @@ def get_1d_ale(args, model, test_head, index, bins, monte_carlo_ratio, monte_car
             # (139, 60, 1) diffrent indices  (139) # (bs, 2)
             effects = np.subtract(predictions[1][:, -1, :].cpu().detach().numpy(), predictions[0][:, -1, :].cpu().detach().numpy())
         # [ndarray with shape (231, 2), ndarray with shape (260, 2)...]
-        if args.task == 'static':
-            effects_t.append(effects[:, 0])
-        else: 
-            effects_t.append(effects)
+            if args.task == 'static':
+                effects_t.append(effects[:, 0])
+            else: 
+                effects_t.append(effects)
         # [ndarray with shape (231,), ndarray with shape (260, ), ...]
-        indices_t.append(indices)
+            indices_t.append(indices)
 
         if args.task == 'sofa':
             index_groupby = pd.DataFrame({"index": np.concatenate(indices_t, axis=0), \

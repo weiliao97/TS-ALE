@@ -156,7 +156,7 @@ if __name__ == "__main__":
     ale_df = pd.DataFrame(index=keys_sim)
     ale_df['ale'] = ''
     factor = 1 if args.task == 'static' else 15
-    for var_ind in var_inds[:1]:
+    for var_ind in var_inds:
         ind = var_ind//2 if var_ind <= 108 else (var_ind-6)//2
         key = keys_sim[ind]
         max_ale = []

@@ -26,6 +26,7 @@ if __name__ == "__main__":
     parser.add_argument("--ale_file", type=str)
     parser.add_argument("--use_random", action = 'store_true', default= False, help="Whethe randomly drop cols")
     parser.add_argument("--use_reverse", action = 'store_true', default= False, help="Whethe reversely drop cols")
+    parser.add_argument("--task", type=str, default='sofa', choices=['static', 'sofa'])
     # datapath 
     # parser.add_argument("--td_data", type=str, help = 'path to the time-series data')
     # parser.add_argument("--static_data", type=str, help = 'path to the static data')
