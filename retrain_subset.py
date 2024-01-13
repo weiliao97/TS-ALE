@@ -12,6 +12,7 @@ import models
 import prepare_retrain
 import utils
 import pickle 
+import json 
 from sklearn.model_selection import KFold
 kf = KFold(n_splits=10, random_state=None, shuffle=False)
 mse_loss = nn.MSELoss()
@@ -126,11 +127,11 @@ if __name__ == "__main__":
     for col_cnt in [5, 10, 20, 30, 40, 50]:
         args.col_count = col_cnt
         if args.use_random:
-            workname = date + 'retrain_subset_%d'%args.col_count + '_' + 'random' 
+            workname = date + '2024_' + 'sofa_retrain_subset_%d'%args.col_count + '_' + 'random' 
         elif args.use_reverse:
-            workname = date + 'retrain_subset_%d'%args.col_count + '_' + 'reverse' 
+            workname = date + '2024_' + 'sofa_retrain_subset_%d'%args.col_count + '_' + 'reverse' 
         else: 
-            workname = date + 'retrain_subset_%d'%args.col_count 
+            workname = date + '2024_' + 'sofa_retrain_subset_%d'%args.col_count 
     
         utils.creat_checkpoint_folder(base + workname, 'params.json', vars(args))
         if not args.use_random: 
@@ -147,11 +148,11 @@ if __name__ == "__main__":
 
         else: 
             print('Randomly zero cols')
-            col_to_zero = random.choices(var_inds, k=args.col_count)
+            col_to_zero = random.sample(var_inds, k=args.col_count)
             with open(base + workname + 'cols_dopped', 'wb') as fp:
                 pickle.dump(col_to_zero, fp)
-            print(col_to_zero)
-
+        
+        print(col_to_zero)
         rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
 
         train_head = utils.drop_col(train_head_or, rows_to_zero)
@@ -294,3 +295,14 @@ if __name__ == "__main__":
                             print('Start next fold')
                             break
                     print('Epoch %d, : Train loss is %.4f, test loss is %.4f' % (j, loss_avg, loss_te))
+        
+        # Load weights and do eval on test set, save mse and its ci 
+        if args.task == 'sofa':
+            model.load_state_dict(torch.load(base + workname + '/' + 'fold0_best_loss.pt'))
+            y_list, y_pred_list, td_list, loss_te = utils.get_eval_results(args, model, test_dataloader)
+            y_list_f = [item for sublist in y_list for item in sublist]
+            y_pred_list_f = [item for sublist in y_pred_list for item in sublist]
+            mse_l, mse_h = utils.get_mse_ci(y_list_f, y_pred_list_f, n_bootstraps = 1000, rng_seed = 42)
+            mse_dict = {'mse': loss_te, 'mse_l': mse_l, 'mse_h': mse_h}
+            with open(base + workname + '/test_mse.json', "w") as outfile:
+                json.dump(mse_dict, outfile)

@@ -522,27 +522,64 @@ def get_evalacc_results(model, test_loader):
   
     return y_list, y_pred_list, td_list, loss_te, val_acc
 
-# def get_eval_results(model, test_loader):
+
+def mse_maskloss(output, target, mask):
+    """
     
-#     model.eval()
-#     y_list = []
-#     y_pred_list = []
-#     td_list = []
-#     loss_val = []
-#     with torch.no_grad():  # validation does not require gradient
+    """
+    mse_loss = nn.MSELoss()
+    loss = [mse_loss(output[i][mask[i]==0], target[i][mask[i]==0]) \
+            for i in range(len(output))]
+    return torch.mean(torch.stack(loss))
 
-#         for vitals, target, key_mask in test_loader:
-#             # ti_test = Variable(torch.FloatTensor(ti)).to(device)
-#             td_test = Variable(torch.FloatTensor(vitals)).to(device)
-#             sofa_t = Variable(torch.FloatTensor(target)).to(device)
+def get_eval_results(args, model, test_loader):
+    """Args:
+        model: model to evaluate
+        test_loader: test data loader
+    Returns:
+        y_list: list of true values
+        y_pred_list: list of predicted values
+        td_list: list of time series data
+        loss_te: test loss
+    """
+    model.eval()
+    y_list = []
+    y_pred_list = []
+    td_list = []
+    loss_val = []
+    with torch.no_grad():  # validation does not require gradient
 
-#             tgt_mask_test = model.get_tgt_mask(td_test.shape[-1]).to(device)
-#             sofap_t = model(td_test, tgt_mask_test, key_mask.to(device))
+        for vitals, static, target, _, key_mask  in test_loader:
             
-#             loss_v = loss_fn.mse_maskloss(sofap_t, sofa_t, key_mask.to(device))
-#             y_list.append(sofa_t.cpu().detach().numpy())
-#             y_pred_list.append(sofap_t.cpu().detach().numpy())
-#             loss_val.append(loss_v)
-#     loss_te = np.mean(torch.stack(loss_val, dim=0).cpu().detach().numpy())
+            sofap_t = model(vitals.to(device), static.to(device))
 
-#     return y_list, y_pred_list, td_list, loss_te
+            loss_v = mse_maskloss(sofap_t, target.to(device), key_mask.to(device))
+            y_list.append([target[i][key_mask[i]==0].detach().numpy() for i in range(len(target))])
+            y_pred_list.append([sofap_t[i][key_mask[i]==0].cpu().detach().numpy() for i in range(len(target))])
+            loss_val.append(loss_v)
+            td_list.append(vitals.detach().numpy())
+    
+    loss_te = np.mean(torch.stack(loss_val, dim=0).cpu().detach().numpy())
+
+    return y_list, y_pred_list, td_list, loss_te
+
+def get_mse_ci(y_true, y_pred, n_bootstraps = 1000, rng_seed = 42):
+    
+    bootstrapped_scores = []
+
+    rng = np.random.RandomState(rng_seed)
+    for i in range(n_bootstraps):
+        # bootstrap by sampling with replacement on the prediction indices
+        select_indices = rng.randint(0, len(y_pred), len(y_pred))
+        pred_bs, target_bs = [y_true[k] for k in select_indices], [y_pred[k] for k in select_indices]
+        bootstrapped_scores.append(np.mean([((pred_bs[k] - target_bs[k])**2).mean() for k in range(len(pred_bs))]))
+        # print("Bootstrap #{} ROC area: {:0.3f}".format(i + 1, score))
+    sorted_scores = np.array(bootstrapped_scores)
+    sorted_scores.sort()
+
+    # Computing the lower and upper bound of the 90% confidence interval
+    # You can change the bounds percentiles to 0.025 and 0.975 to get
+    # a 95% confidence interval instead.
+    confidence_lower = sorted_scores[int(0.05 * len(sorted_scores))]
+    confidence_upper = sorted_scores[int(0.95 * len(sorted_scores))]
+    return confidence_lower*225, confidence_upper*225
