@@ -40,7 +40,7 @@ def data_piece(train_set_rep, index, record_flag):
                 all_features.append(record[index, :rec_ind+1])
     return train_set_piece, np.concatenate(all_features)
 
-def get_1d_ale(model, test_head, index, bins, monte_carlo_ratio, monte_carlo_rep, record_flag):
+def get_1d_ale(args, model, test_head, index, bins, monte_carlo_ratio, monte_carlo_rep, record_flag):
 
     mc_replicates = np.asarray([
                         [
@@ -102,14 +102,21 @@ def get_1d_ale(model, test_head, index, bins, monte_carlo_ratio, monte_carlo_rep
                 predictions.append(model(torch.FloatTensor(mod_train_set).to(device)))  # (6, 1, 1) or (6, 5, 1) depending on the length
             # The individual effects.
             # (139, 60, 1) diffrent indices  (139) # (bs, 2)
-            effects = np.subtract(predictions[1].cpu().detach().numpy(), predictions[0].cpu().detach().numpy())
-            # [ndarray with shape (231, 2), ndarray with shape (260, 2)...]
+            effects = np.subtract(predictions[1][:, -1, :].cpu().detach().numpy(), predictions[0][:, -1, :].cpu().detach().numpy())
+        # [ndarray with shape (231, 2), ndarray with shape (260, 2)...]
+        if args.task == 'static':
             effects_t.append(effects[:, 0])
-            # [ndarray with shape (231,), ndarray with shape (260, ), ...]
-            indices_t.append(indices)
+        else: 
+            effects_t.append(effects)
+        # [ndarray with shape (231,), ndarray with shape (260, ), ...]
+        indices_t.append(indices)
 
-        index_groupby = pd.DataFrame({"index": np.concatenate(indices_t, axis=0), \
-                                "effects": np.concatenate(effects_t, axis=0)}).groupby("index")
+        if args.task == 'sofa':
+            index_groupby = pd.DataFrame({"index": np.concatenate(indices_t, axis=0), \
+                            "effects": np.concatenate(effects_t, axis=0).squeeze(-1)}).groupby("index")
+        else: 
+            index_groupby = pd.DataFrame({"index": np.concatenate(indices_t, axis=0), \
+                            "effects": np.concatenate(effects_t, axis=0)}).groupby("index")          
         mean_effects = index_groupby.mean().to_numpy().flatten()
         ale = np.array([0, *np.cumsum(mean_effects)])
         ale_nc.append(ale)

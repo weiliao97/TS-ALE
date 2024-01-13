@@ -54,6 +54,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_sepsis3", action = 'store_true', default= False, help="Whethe only use sepsis3 subset")
     parser.add_argument("--input_dim", type = int, default= 200, help="Dimension of variables used to train the extarction model")
     parser.add_argument("--bucket_size", type=int, default=300, help="path to the dataset")
+    parser.add_argument("--task", type=str, default='sofa', choices=['static', 'sofa'])
     # TCN
     parser.add_argument("--kernel_size", type=int, default=3, help="Dimension of the model")
     parser.add_argument("--dropout", type=float, default=0.2, help="Model dropout")
@@ -112,7 +113,7 @@ if __name__ == "__main__":
     # severe_liver_disease 1189 metastatic_solid_tumor 1749 aids 133
     # ethnicity_AMERICAN INDIAN 46 ethnicity_ASIAN 791 ethnicity_BLACK 2359 ethnicity_HISPANIC/LATINO 919 ethnicity_OTHER 4547 ethnicity_WHITE 18474
     args.bucket_size = bucket_sizes[args.sens_ind]
-    workname = today_date + '_' + args.database + '_' + target_name[args.sens_ind]
+    workname = today_date + '2024_' + args.database + ('_sofa' if args.task == 'sofa' else '%s'%target_name[args.sens_ind])
     utils.creat_checkpoint_folder('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname, 'params.json', arg_dict)
     train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', target_index[args.sens_ind])
     dev_head, dev_sofa, dev_id, dev_target =  utils.crop_data_target(dev_vital , mimic_target, mimic_static, 'dev', target_index[args.sens_ind])
@@ -135,15 +136,16 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(args.model_path))
     model.eval()
 
-    fc_model = models.FCNet(num_inputs=args.num_channels[-1], num_channels=args.read_channels, \
+    if args.task == 'static': 
+        fc_model = models.FCNet(num_inputs=args.num_channels[-1], num_channels=args.read_channels, \
                             dropout=args.read_drop, reluslope=args.read_reluslope, \
                             output_class=args.output_classes)
-    fc_model.to(device)
-    fc_model_path = '/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + args.fc_model_path
-    fc_model.load_state_dict(torch.load(fc_model_path))
-    fc_model.eval()
+        fc_model.to(device)
+        fc_model_path = '/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + args.fc_model_path
+        fc_model.load_state_dict(torch.load(fc_model_path))
+        fc_model.eval()
 
-    model_c = models.Combined_model(model.network, fc_model)
+        model = models.Combined_model(model.network, fc_model)
 
     # run ale for continous variables
     mimic_mean_std = pd.read_hdf('/content/drive/MyDrive/ColabNotebooks/MIMIC/Extract/MEEP/Extracted_sep_2022/0910/MEEP_stats_MIMIC.h5')
@@ -153,11 +155,12 @@ if __name__ == "__main__":
     keys_sim = [i[0] for i in keys]
     ale_df = pd.DataFrame(index=keys_sim)
     ale_df['ale'] = ''
-    for var_ind in var_inds:
+    factor = 1 if args.task == 'static' else 15
+    for var_ind in var_inds[:1]:
         ind = var_ind//2 if var_ind <= 108 else (var_ind-6)//2
         key = keys_sim[ind]
         max_ale = []
-        quantile_t, ale_t, quantile_nc, ale_nc= ale.get_1d_ale(model_c, test_head, index=var_ind, bins=20, monte_carlo_ratio=0.1, monte_carlo_rep=50, record_flag=1)
+        quantile_t, ale_t, quantile_nc, ale_nc= ale.get_1d_ale(args, model, test_head, index=var_ind, bins=20, monte_carlo_ratio=0.1, monte_carlo_rep=50, record_flag=1)
         # ind = 55
         fig, ax = plt.subplots(figsize=(5, 4))
         for i, (q, a) in enumerate(zip(quantile_t, ale_t)):
@@ -165,12 +168,12 @@ if __name__ == "__main__":
             ale_df.loc[key, 'ale_raw_%d'%i] = np.max(a) - np.min(a)
             if len(q) > len(a):
                 extra = len(q) - len(a)
-                ax.plot(q[extra:]*col_stds[keys[ind]] + col_means[keys[ind]], a, color="#1f77b4", alpha=0.1)
+                ax.plot(q[extra:]*col_stds[keys[ind]] + col_means[keys[ind]], a*factor, color="#1f77b4", alpha=0.1)
             elif len(q) < len(a):
                 extra = len(q) - len(a)
-                ax.plot(q*col_stds[keys[ind]] + col_means[keys[ind]], a[extra:], color="#1f77b4", alpha=0.1)
+                ax.plot(q*col_stds[keys[ind]] + col_means[keys[ind]], a[extra:]*factor, color="#1f77b4", alpha=0.1)
             else:
-                ax.plot(q*col_stds[keys[ind]] + col_means[keys[ind]], a, color="#1f77b4", alpha=0.1)
+                ax.plot(q*col_stds[keys[ind]] + col_means[keys[ind]], a*factor, color="#1f77b4", alpha=0.1)
             
         # print(key, max_ale)
         ale_df.loc[key, 'ale'] = np.mean(max_ale)
@@ -178,7 +181,7 @@ if __name__ == "__main__":
         # ax.axvline(x=3, color = '#b45c1f', linestyle='--')
         # ax.axvline(x=5, color = '#b45c1f', linestyle='--')
         ax.set_xlabel('%s'%key, size=18,  fontweight='bold')
-        ax.set_ylabel('Prob ALE', size=18,  fontweight='bold')
+        ax.set_ylabel('SOFA ALE', size=18,  fontweight='bold')
         plt.savefig('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname + '/%s_ale.pdf'%key, format='pdf', bbox_inches = 'tight', pad_inches = 0.1, dpi=1200)
         ale_df.to_csv('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname + '/ale.csv')
     
