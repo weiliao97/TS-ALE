@@ -303,6 +303,6 @@ if __name__ == "__main__":
             y_list_f = [item for sublist in y_list for item in sublist]
             y_pred_list_f = [item for sublist in y_pred_list for item in sublist]
             mse_l, mse_h = utils.get_mse_ci(y_list_f, y_pred_list_f, n_bootstraps = 1000, rng_seed = 42)
-            mse_dict = {'mse': loss_te, 'mse_l': mse_l, 'mse_h': mse_h}
+            mse_dict = {'mse': str(loss_te*225), 'mse_l': str(mse_l), 'mse_h': str(mse_h)}
             with open(base + workname + '/test_mse.json', "w") as outfile:
                 json.dump(mse_dict, outfile)
