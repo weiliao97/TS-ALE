@@ -124,7 +124,8 @@ if __name__ == "__main__":
     keys_sim = [i[0] for i in keys]
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
     
-    for col_cnt in [5, 10, 20, 30, 40, 50]:
+    col_list = [10, 20, 30, 40, 50]
+    for i, col_cnt in enumerate([5, 10, 20, 30, 40, 50]):
         args.col_count = col_cnt
         if args.use_random:
             workname = date + '2024_' + 'sofa_retrain_subset_%d'%args.col_count + '_' + 'random' 
@@ -148,10 +149,19 @@ if __name__ == "__main__":
 
         else: 
             print('Randomly zero cols')
-            col_to_zero = random.sample(var_inds, k=args.col_count)
-            with open(base + workname + 'cols_dopped', 'wb') as fp:
-                pickle.dump(col_to_zero, fp)
-        
+            if i >= 1: # load previous level
+                prev_col = col_list[i-1]
+                prev_work = date + '2024_' + 'sofa_retrain_subset_%d'%prev_col + '_' + 'random' 
+                with open(base + workname + '/cols_dopped', "rb")as fp:
+                    prev_file= pickle.load(fp)
+                new_col = random.sample(var_inds, k=args.col_count - prev_col)
+                col_to_zero = prev_file + new_col
+            else: 
+                col_to_zero = random.sample(var_inds, k=args.col_count)
+            
+        with open(base + workname + '/cols_dopped', "wb")as fp:
+            pickle.dump(col_to_zero, fp)
+
         print(col_to_zero)
         rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
 
