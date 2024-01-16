@@ -158,6 +158,7 @@ if __name__ == "__main__":
         model = models.Trans_encoder(feature_dim=args.input_dim, d_model=args.d_model, \
                         nhead=args.n_head, d_hid=args.dim_ff_mul * args.d_model, \
                         nlayers=args.num_enc_layer, out_dim=1, dropout=args.dropout)
+        model.to(device)
         model.load_state_dict(torch.load(args.model_path))
         fc_model = models.FCNet(num_inputs=args.d_model, num_channels=args.read_channels, \
                                 dropout=args.read_drop, reluslope=args.read_reluslope, \
