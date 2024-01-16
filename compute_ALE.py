@@ -59,18 +59,26 @@ if __name__ == "__main__":
     parser.add_argument("--dropout", type=float, default=0.2, help="Model dropout")
     parser.add_argument("--reluslope", type=float, default=0.1, help="Relu slope in the fc model")
     parser.add_argument('--num_channels', nargs='+', type = int, help='num of channels in TCN')
+    # Transformer
+    parser.add_argument('--lr_factor', type=int, default=0.1, help="warmup_learning rate factor")
+    parser.add_argument('--lr_steps', type=int, default=2000, help="warmup_learning warm up steps")
+    parser.add_argument("--d_model", type=int, default=256, help="Dimension of the model")
+    parser.add_argument("--n_head", type=int, default=8, help="Attention head of the model")
+    parser.add_argument("--dim_ff_mul", type=int, default=4, help="Dimension of the feedforward model")
+    parser.add_argument("--num_enc_layer", type=int, default=2, help="Number of encoding layers")
+
     # FC 
     parser.add_argument("--read_drop", type=float, default=0.2, help="Model dropout in FC read model")
     parser.add_argument("--read_reluslope", type=float, default=0.1, help="Relu slope in the FC read model")
     parser.add_argument("--read_channels", nargs='+', type = int, help='num of channels in FC read model')
     parser.add_argument("--output_classes", type=int, default=2, help="Which static column to target")
-    parser.add_argument("--sens_ind", type=int, default=2, help = "target index to predict")
+    parser.add_argument("--sens_ind", type=int, default=0, help = "target index to predict")
     parser.add_argument("--cal_pos_acc", action = 'store_false', default=True, help="Whethe calculate the acc of the positive class")
 
 
     # model path 
-    parser.add_argument("--model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/0125_mimic_TCNsepsis_3_256_ks3/fold0_best_loss.pt')
-    parser.add_argument("--fc_model_path", type=str, default='0128_mimic_TCN_FC_Ethnicity/fold0_best_loss.pt')
+    parser.add_argument("--model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/0125_mimic_Transformertransformer/fold0_best_loss.pt')
+    parser.add_argument("--fc_model_path", type=str, default='0225_mimic_trans_sepsis3_sofa_Transformer_FC_Gender/fold0_best_loss.pt')
   
 
     args = parser.parse_args()
@@ -130,11 +138,18 @@ if __name__ == "__main__":
         test_head_e, test_sofa_e, test_id_e, test_target_e = utils.filter_sepsis_e(test_head_e, test_sofa_e, test_id_e, test_target_e)
 
     # load pretrained model 
-    model = models.TemporalConv(num_inputs = args.input_dim, num_channels=args.num_channels, kernel_size=args.kernel_size, dropout = args.dropout, output_class=1)
+    if args.model == 'tcn': 
+        model = models.TemporalConv(num_inputs = args.input_dim, num_channels=args.num_channels, kernel_size=args.kernel_size, dropout = args.dropout, output_class=1)
+    elif args.model == 'transformer':
+        model = models.Trans_encoder(feature_dim=args.input_dim, d_model=args.d_model, \
+                        nhead=args.n_head, d_hid=args.dim_ff_mul * args.d_model, \
+                        nlayers=args.num_enc_layer, out_dim=1, dropout=args.dropout)
+    else: 
+        raise ValueError('Model type not supported')
+
     model.to(device)
     model.load_state_dict(torch.load(args.model_path))
     model.eval()
-
     fc_model = models.FCNet(num_inputs=args.num_channels[-1], num_channels=args.read_channels, \
                             dropout=args.read_drop, reluslope=args.read_reluslope, \
                             output_class=args.output_classes)
