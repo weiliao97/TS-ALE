@@ -54,6 +54,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_sepsis3", action = 'store_true', default= False, help="Whethe only use sepsis3 subset")
     parser.add_argument("--input_dim", type = int, default= 200, help="Dimension of variables used to train the extarction model")
     parser.add_argument("--bucket_size", type=int, default=300, help="path to the dataset")
+    parser.add_argument("--model", type=str, default='transformer', choices=['tcn', 'transformer'], help="Model type")
     # TCN
     parser.add_argument("--kernel_size", type=int, default=3, help="Dimension of the model")
     parser.add_argument("--dropout", type=float, default=0.2, help="Model dropout")
@@ -153,6 +154,7 @@ if __name__ == "__main__":
         model_c = models.Combined_model(model.network, fc_model)
 
     elif args.model == 'transformer':
+        print("Model type: Transformer")
         model_c = models.Trans_encoder(feature_dim=args.input_dim, d_model=args.d_model, \
                         nhead=args.n_head, d_hid=args.dim_ff_mul * args.d_model, \
                         nlayers=args.num_enc_layer, out_dim=1, dropout=args.dropout)
