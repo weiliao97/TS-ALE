@@ -124,15 +124,15 @@ if __name__ == "__main__":
     keys_sim = [i[0] for i in keys]
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
     
-    col_list = [10, 20, 30, 40, 50]
+    col_list = [5, 10, 20, 30, 40, 50]
     for i, col_cnt in enumerate([5, 10, 20, 30, 40, 50]):
         args.col_count = col_cnt
         if args.use_random:
-            workname = date + '2024_' + 'sofa_retrain_subset_%d'%args.col_count + '_' + 'random' 
+            workname = date + '2024_' + 'sofa_min_retrain_subset_%d'%args.col_count + '_' + 'random' 
         elif args.use_reverse:
-            workname = date + '2024_' + 'sofa_retrain_subset_%d'%args.col_count + '_' + 'reverse' 
+            workname = date + '2024_' + 'sofa_min_retrain_subset_%d'%args.col_count + '_' + 'reverse' 
         else: 
-            workname = date + '2024_' + 'sofa_retrain_subset_%d'%args.col_count 
+            workname = date + '2024_' + 'sofa_min_retrain_subset_%d'%args.col_count 
     
         utils.creat_checkpoint_folder(base + workname, 'params.json', vars(args))
         if not args.use_random: 
@@ -163,7 +163,8 @@ if __name__ == "__main__":
             pickle.dump(col_to_zero, fp)
 
         print(col_to_zero)
-        rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
+        rows_to_keep = col_to_zero + [i+1 for i in col_to_zero]
+        rows_to_zero = [i for i in range(200) if i not in rows_to_keep]
 
         train_head = utils.drop_col(train_head_or, rows_to_zero)
         dev_head = utils.drop_col(dev_head_or, rows_to_zero)
