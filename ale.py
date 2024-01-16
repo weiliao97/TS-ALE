@@ -25,7 +25,7 @@ def get_centres(x):
     """
     return (x[1:] + x[:-1]) / 2
 
-def data_piece(args, train_set_rep, index, record_flag):
+def data_piece(train_set_rep, index, record_flag):
     train_set_piece = []
     all_features = []
     # when >=164# something here needs to be fixed
