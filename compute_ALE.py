@@ -155,10 +155,10 @@ if __name__ == "__main__":
 
     elif args.model == 'transformer':
         print("Model type: Transformer")
-        model_c = models.Trans_encoder(feature_dim=args.input_dim, d_model=args.d_model, \
+        model = models.Trans_encoder(feature_dim=args.input_dim, d_model=args.d_model, \
                         nhead=args.n_head, d_hid=args.dim_ff_mul * args.d_model, \
                         nlayers=args.num_enc_layer, out_dim=1, dropout=args.dropout)
-        model_c.load_state_dict(torch.load(args.model_path))
+        model.load_state_dict(torch.load(args.model_path))
         fc_model = models.FCNet(num_inputs=args.d_model, num_channels=args.read_channels, \
                                 dropout=args.read_drop, reluslope=args.read_reluslope, \
                                 output_class=args.output_classes)
@@ -166,7 +166,7 @@ if __name__ == "__main__":
         fc_model_path = '/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + args.fc_model_path
         fc_model.load_state_dict(torch.load(fc_model_path))
         fc_model.eval()
-        model_c.decoder = fc_model
+        model_c = models.Combined_model_t(model, fc_model)
     else: 
         raise ValueError('Model type not supported')
 
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         ind = var_ind//2 if var_ind <= 108 else (var_ind-6)//2
         key = keys_sim[ind]
         max_ale = []
-        quantile_t, ale_t, quantile_nc, ale_nc= ale.get_1d_ale(model_c, test_head, index=var_ind, bins=20, monte_carlo_ratio=0.1, monte_carlo_rep=50, record_flag=1)
+        quantile_t, ale_t, quantile_nc, ale_nc= ale.get_1d_ale(args, model_c, test_head, index=var_ind, bins=20, monte_carlo_ratio=0.1, monte_carlo_rep=50, record_flag=1)
         # ind = 55
         fig, ax = plt.subplots(figsize=(5, 4))
         for i, (q, a) in enumerate(zip(quantile_t, ale_t)):

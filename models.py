@@ -19,6 +19,38 @@ class Combined_model(nn.Module):
         x = nn.Softmax(dim=-1)(x)
         return x
 
+class Combined_model_t(nn.Module):
+    def __init__(self, TRAN, FC):
+        super(Combined_model_t, self).__init__()
+        self.TRAN = TRAN
+        self.FC = FC
+        # self.classifier = nn.Linear(4, 2)
+
+    def forward(self, src, tgt_mask, key_mask):
+
+        src = self.TRAN.encoder(src.transpose(1, 2)) # (1, 24, 256)
+        src = self.TRAN.pos_encoder(src) # (1, 24, 256)
+        x = self.TRAN.transformer_encoder(src, tgt_mask, key_mask).transpose(1, 2) # after transpose: (1, 256, 24)
+        x = self.FC(x) # (bs, T, 2)
+        x = torch.mean(x, dim=1) # (bs, )
+        x = nn.Softmax(dim=-1)(x)
+        return x
+    
+    def get_tgt_mask(self, size):
+        # Generates a squeare matrix where the each row allows one word more to be seen
+        mask = ~torch.tril(torch.ones(size, size) == 1)  # Lower triangular matrix
+        # mask = mask.float()
+        # mask = mask.masked_fill(mask == 0, float('-inf')) # Convert zeros to -inf
+        # mask = mask.masked_fill(mask == 1, float(0.0)) # Convert ones to 0
+        
+        # EX for size=5:
+        # tensor([[False,  True,  True,  True,  True],
+        # [False, False,  True,  True,  True],
+        # [False, False, False,  True,  True],
+        # [False, False, False, False,  True],
+        # [False, False, False, False, False]])
+
+        return mask
 
 class FCNet(nn.Module):
     def __init__(self, num_inputs, num_channels, dropout, reluslope, output_class):

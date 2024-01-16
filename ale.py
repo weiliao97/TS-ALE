@@ -25,7 +25,7 @@ def get_centres(x):
     """
     return (x[1:] + x[:-1]) / 2
 
-def data_piece(train_set_rep, index, record_flag):
+def data_piece(args, train_set_rep, index, record_flag):
     train_set_piece = []
     all_features = []
     # when >=164# something here needs to be fixed
@@ -40,7 +40,7 @@ def data_piece(train_set_rep, index, record_flag):
                 all_features.append(record[index, :rec_ind+1])
     return train_set_piece, np.concatenate(all_features)
 
-def get_1d_ale(model, test_head, index, bins, monte_carlo_ratio, monte_carlo_rep, record_flag):
+def get_1d_ale(args, model, test_head, index, bins, monte_carlo_ratio, monte_carlo_rep, record_flag):
 
     mc_replicates = np.asarray([
                         [
@@ -96,10 +96,18 @@ def get_1d_ale(model, test_head, index, bins, monte_carlo_ratio, monte_carlo_rep
                     np.digitize(piece[:, index, -1], quantiles, right=True) - 1, 0, None
                 )
             predictions = []
-            for offset in range(2):
-                mod_train_set = piece.copy()
-                mod_train_set[:, index, -1] = quantiles[indices + offset]
-                predictions.append(model(torch.FloatTensor(mod_train_set).to(device)))  # (6, 1, 1) or (6, 5, 1) depending on the length
+            if args.model == 'tcn':
+                for offset in range(2):
+                    mod_train_set = piece.copy()
+                    mod_train_set[:, index, -1] = quantiles[indices + offset]
+                    predictions.append(model(torch.FloatTensor(mod_train_set).to(device)))  # (6, 1, 1) or (6, 5, 1) depending on the length
+            elif args.model == 'transformer':
+                for offset in range(2):
+                    mod_train_set = piece.copy()
+                    mod_train_set[:, index, -1] = quantiles[indices + offset]
+                    tgt_mask = model.get_tgt_mask(mod_train_set.shape[-1]).to(device)
+                    key_mask = torch.zeros(mod_train_set.shape[0], mod_train_set.shape[-1]).to(device)
+                    predictions.append(model(torch.FloatTensor(mod_train_set).to(device), tgt_mask, key_mask))
             # The individual effects.
             # (139, 60, 1) diffrent indices  (139) # (bs, 2)
             effects = np.subtract(predictions[1].cpu().detach().numpy(), predictions[0].cpu().detach().numpy())
