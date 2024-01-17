@@ -43,7 +43,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parser for read static info models")
 
     ## model representation to get from
-    parser.add_argument("--model_name", type=str, default='TCN', choices=['Transformer', 'TCN', 'LSTM'])
+    parser.add_argument("--model_name", type=str, default='Transformer', choices=['Transformer', 'TCN', 'LSTM'])
     parser.add_argument("--col_count", type=int, default=10, help = 'top k cols to zero')
     parser.add_argument("--ale_file", type=str)
     parser.add_argument("--use_random", action = 'store_true', default= False, help="Whethe randomly zero cols")
@@ -86,7 +86,7 @@ if __name__ == "__main__":
     parser.add_argument("--read_reluslope", type=float, default=0.1, help="Relu slope in the FC read model")
     parser.add_argument("--read_channels", nargs='+', type = int, help='num of channels in FC read model')
     parser.add_argument("--output_classes", type=int, default=2, help="Which static column to target")
-    parser.add_argument("--infer_ind", type=int, default=1, help="Which static column to target")
+    parser.add_argument("--infer_ind", type=int, default=0, help="Which static column to target")
     parser.add_argument("--cal_pos_acc", action = 'store_false', default=True, help="Whethe calculate the acc of the positive class")
 
     # learning parameters
@@ -164,16 +164,16 @@ if __name__ == "__main__":
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
 
     for col_cnt in [10, 20, 30, 40, 50]:
-        args.model_path = '1126_retrain_subset_age_%d_reverse/fold0_best_loss.pt'%col_cnt
+        args.model_path = '01172024_retrain_subset_transformer_sex_%d/fold5_best_loss.pt'%col_cnt
         args.input_dim = 200 - col_cnt*2
         print(args.model_path)
         args.col_count = col_cnt 
         if args.use_random:
-            workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' 
+            workname = date + '2024_retrain_mlp_transfromer_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'random' 
         elif args.use_reverse:
-            workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'reverse' 
+            workname = date + '2024_retrain_mlp_transformer_%d'%args.col_count +  '_' + target_name[args.infer_ind] + '_' + 'reverse' 
         else: 
-            workname = date + '_retrain_mlp_%d'%args.col_count +  '_' + target_name[args.infer_ind]
+            workname = date + '2024_retrain_mlp_transformer_%d'%args.col_count +  '_' + target_name[args.infer_ind]
             
         utils.creat_checkpoint_folder(base + workname, 'params.json', vars(args))
         if not args.use_random: 
@@ -241,110 +241,110 @@ if __name__ == "__main__":
         model_opt = torch.optim.Adam(model.parameters(), lr=args.lr)
 
         for c_fold, (train_index, test_index) in enumerate(kf.split(trainval_data)):
-            best_loss = 1e4
-            patience = 0
-            if c_fold >=1:
-                model.load_state_dict(torch.load('/content/start_weights.pt'))
-            print('Starting Fold %d'%c_fold)
-            print("TRAIN:", len(train_index), "TEST:", len(test_index))
+            if c_fold == 5: 
+                best_loss = 1e4
+                patience = 0
+                if c_fold >=1:
+                    model.load_state_dict(torch.load('/content/start_weights.pt'))
+                print('Starting Fold %d'%c_fold)
+                print("TRAIN:", len(train_index), "TEST:", len(test_index))
 
-            train_cv, dev_cv, train_labelcv, dev_labelcv = utils.get_cv_data(train_encode, dev_encode, np.asarray(train_target), np.asarray(dev_target), train_index, test_index)
-            print('Compiled another CV data')
-            train_dataloader, dev_dataloader, test_dataloader = prepare_data.get_data_loader(args, train_cv, dev_cv, test_encode, train_labelcv, \
-                                                                                                dev_labelcv, test_target)
+                train_cv, dev_cv, train_labelcv, dev_labelcv = utils.get_cv_data(train_encode, dev_encode, np.asarray(train_target), np.asarray(dev_target), train_index, test_index)
+                print('Compiled another CV data')
+                train_dataloader, dev_dataloader, test_dataloader = prepare_data.get_data_loader(args, train_cv, dev_cv, test_encode, train_labelcv, \
+                                                                                                    dev_labelcv, test_target)
 
-            ctype, count= np.unique(dev_labelcv, return_counts=True)
-            total_dev_samples = len(dev_labelcv)
-            weights_per_class = torch.FloatTensor([ total_dev_samples / k / len(ctype) for k in count]).to(device)
-            ce_val_loss = nn.CrossEntropyLoss(weight = weights_per_class)
+                ctype, count= np.unique(dev_labelcv, return_counts=True)
+                total_dev_samples = len(dev_labelcv)
+                weights_per_class = torch.FloatTensor([ total_dev_samples / k / len(ctype) for k in count]).to(device)
+                ce_val_loss = nn.CrossEntropyLoss(weight = weights_per_class)
 
-            for j in  range(args.epochs):
-                model.train()
-                sofa_list = []
-                sofap_list = []
-                loss_t = []
-                loss_to = []
+                for j in  range(args.epochs):
+                    model.train()
+                    sofa_list = []
+                    sofap_list = []
+                    loss_t = []
+                    loss_to = []
 
-                for vitals, target, key_mask in train_dataloader:
-                    # print(label.shape)
-                    model_opt.zero_grad()
-                    # ti_data = Variable(ti.float().to(device))
-                    td_data = vitals.to(device) # (6, 182, 24)
-                    sofa = target.to(device) #(6, )
-                    key_mask = key_mask.to(device)
-                    # tgt_mask = model.get_tgt_mask(td_data.shape[-1]).to(device)
-                    sofa_p = model(td_data)
-                    pred  = torch.stack([sofa_p[i][key_mask[i]==0].mean(dim=-2) for i in range(len(sofa_p))])
-                    loss = ce_loss(pred, sofa.squeeze(-1))
-                    loss.backward()
-                    model_opt.step()
-
-                    sofa_list.append(sofa)
-                    sofap_list.append(pred)
-                    loss_t.append(loss)
-
-                train_acc = utils.cal_acc(sofap_list, sofa_list)
-                print('Train acc is %.2f%%'%(train_acc*100))
-
-                loss_avg = ce_loss(torch.concat(sofap_list), torch.concat(sofa_list).squeeze(-1)).cpu().detach().item()
-                #  np.mean(torch.stack(loss_t, dim=0).cpu().detach().numpy())
-
-
-                model.eval()
-                y_list = []
-                y_pred_list = []
-                ti_list = []
-                td_list = []
-                # loss_val = []
-                with torch.no_grad():  # validation does not require gradient
-
-                    for vitals, target, key_mask in dev_dataloader:
-                        # ti_test = Variable(torch.FloatTensor(ti)).to(device)
-                        td_test = vitals.float().to(device)
-                        sofa_t = target.long().to(device)
+                    for vitals, target, key_mask in train_dataloader:
+                        # print(label.shape)
+                        model_opt.zero_grad()
+                        # ti_data = Variable(ti.float().to(device))
+                        td_data = vitals.to(device) # (6, 182, 24)
+                        sofa = target.to(device) #(6, )
                         key_mask = key_mask.to(device)
+                        # tgt_mask = model.get_tgt_mask(td_data.shape[-1]).to(device)
+                        sofa_p = model(td_data)
+                        pred  = torch.stack([sofa_p[i][key_mask[i]==0].mean(dim=-2) for i in range(len(sofa_p))])
+                        loss = ce_loss(pred, sofa.squeeze(-1))
+                        loss.backward()
+                        model_opt.step()
 
-                        sofap_t = model(td_test)
+                        sofa_list.append(sofa)
+                        sofap_list.append(pred)
+                        loss_t.append(loss)
 
-                        pred  = torch.stack([sofap_t[i][key_mask[i]==0].mean(dim=-2) for i in range(len(sofa_t))])
-                        # loss_v = ce_val_loss(pred, sofa_t.squeeze(-1))
+                    train_acc = utils.cal_acc(sofap_list, sofa_list)
+                    print('Train acc is %.2f%%'%(train_acc*100))
 
-                        y_list.append(sofa_t)
-                        y_pred_list.append(pred)
-                        # loss_val.append(loss_v)
-
-                loss_te = ce_val_loss(torch.concat(y_pred_list), torch.concat(y_list).squeeze(-1)).cpu().numpy().item()
-                # np.mean(torch.stack(loss_val, dim=0).cpu().detach().numpy())
-                val_acc = utils.cal_acc(y_pred_list, y_list)
-
-                if args.cal_pos_acc == True:
-                    val_pos_acc = utils.cal_pos_acc(y_pred_list, y_list, pos_ind = 1)
-                    print('Validation pos acc is %.2f%%'%(val_pos_acc*100))
-                    diff = abs(val_pos_acc - val_acc)
-                    if diff < best_diff:
-                        print('best diff is %.2f%%'%(diff*100))
-                        torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_diff.pt')
-                        best_diff = diff
+                    loss_avg = ce_loss(torch.concat(sofap_list), torch.concat(sofa_list).squeeze(-1)).cpu().detach().item()
+                    #  np.mean(torch.stack(loss_t, dim=0).cpu().detach().numpy())
 
 
-                print('Validation acc is %.2f%%'%(val_acc*100))
+                    model.eval()
+                    y_list = []
+                    y_pred_list = []
+                    ti_list = []
+                    td_list = []
+                    # loss_val = []
+                    with torch.no_grad():  # validation does not require gradient
 
-                if loss_te < best_loss:
-                    best_loss = loss_te
-                    patience = 0
-                    best_loss = loss_te
-                    #run["train/loss"].log(loss_avg)
-                    torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_loss.pt')
-                else:
-                    patience +=1
-                    if patience >=args.patience:
-                        print('Start next fold')
-                        break
-                if val_acc > best_acc:
-                    best_acc = val_acc
-                    torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_acc.pt')
-                print('Epoch %d, : Train loss is %.4f, validation loss is %.4f' %(j, loss_avg, loss_te))
-            break
+                        for vitals, target, key_mask in dev_dataloader:
+                            # ti_test = Variable(torch.FloatTensor(ti)).to(device)
+                            td_test = vitals.float().to(device)
+                            sofa_t = target.long().to(device)
+                            key_mask = key_mask.to(device)
+
+                            sofap_t = model(td_test)
+
+                            pred  = torch.stack([sofap_t[i][key_mask[i]==0].mean(dim=-2) for i in range(len(sofa_t))])
+                            # loss_v = ce_val_loss(pred, sofa_t.squeeze(-1))
+
+                            y_list.append(sofa_t)
+                            y_pred_list.append(pred)
+                            # loss_val.append(loss_v)
+
+                    loss_te = ce_val_loss(torch.concat(y_pred_list), torch.concat(y_list).squeeze(-1)).cpu().numpy().item()
+                    # np.mean(torch.stack(loss_val, dim=0).cpu().detach().numpy())
+                    val_acc = utils.cal_acc(y_pred_list, y_list)
+
+                    if args.cal_pos_acc == True:
+                        val_pos_acc = utils.cal_pos_acc(y_pred_list, y_list, pos_ind = 1)
+                        print('Validation pos acc is %.2f%%'%(val_pos_acc*100))
+                        diff = abs(val_pos_acc - val_acc)
+                        if diff < best_diff:
+                            print('best diff is %.2f%%'%(diff*100))
+                            torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_diff.pt')
+                            best_diff = diff
+
+
+                    print('Validation acc is %.2f%%'%(val_acc*100))
+
+                    if loss_te < best_loss:
+                        best_loss = loss_te
+                        patience = 0
+                        best_loss = loss_te
+                        #run["train/loss"].log(loss_avg)
+                        torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_loss.pt')
+                    else:
+                        patience +=1
+                        if patience >=args.patience:
+                            print('Start next fold')
+                            break
+                    if val_acc > best_acc:
+                        best_acc = val_acc
+                        torch.save(model.state_dict(), base +  workname + '/' + 'fold%d'%c_fold + '_best_acc.pt')
+                    print('Epoch %d, : Train loss is %.4f, validation loss is %.4f' %(j, loss_avg, loss_te))
 
 
         #
