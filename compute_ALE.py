@@ -78,8 +78,8 @@ if __name__ == "__main__":
 
 
     # model path 
-    parser.add_argument("--model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/0125_mimic_Transformertransformer/fold0_best_loss.pt')
-    parser.add_argument("--fc_model_path", type=str, default='0128_mimic_TCN_FC_Ethnicity/fold0_best_loss.pt')
+    parser.add_argument("--model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/0125_mimic_Transformertransformer/fold5_best_loss.pt')
+    parser.add_argument("--fc_model_path", type=str, default='0225_mimic_trans_sepsis3_sofa_Transformer_FC_Gender/fold5_best_loss.pt')
   
 
     args = parser.parse_args()
@@ -184,7 +184,7 @@ if __name__ == "__main__":
         ind = var_ind//2 if var_ind <= 108 else (var_ind-6)//2
         key = keys_sim[ind]
         max_ale = []
-        quantile_t, ale_t, quantile_nc, ale_nc= ale.get_1d_ale(args, model_c, test_head, index=var_ind, bins=20, monte_carlo_ratio=0.1, monte_carlo_rep=50, record_flag=1)
+        quantile_t, ale_t, quantile_nc, ale_nc= ale.get_1d_ale(args, model_c, test_head, index=var_ind, bins=20, monte_carlo_ratio=0.3, monte_carlo_rep=50, record_flag=1)
         # ind = 55
         fig, ax = plt.subplots(figsize=(5, 4))
         for i, (q, a) in enumerate(zip(quantile_t, ale_t)):

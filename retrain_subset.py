@@ -35,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_sepsis3", action='store_false', default=True, help="Whethe only use sepsis3 subset")
     
     # modeling
-    parser.add_argument("--model_name", type=str, default='TCN', choices=['TCN', 'RNN', 'Transformer'])
+    parser.add_argument("--model_name", type=str, default='Transformer', choices=['TCN', 'RNN', 'Transformer'])
 
     # TCN
     parser.add_argument("--kernel_size", type=int, default=3, help="Dimension of the model")
@@ -122,14 +122,14 @@ if __name__ == "__main__":
     keys_sim = [i[0] for i in keys]
     name_col = {name: key for name, key in zip(keys_sim, var_inds)}
     
-    for col_cnt in [5, 10, 20, 30, 40, 50]:
+    for i, col_cnt in enumerate([5, 10, 20, 30, 40, 50]):
         args.col_count = col_cnt
         if args.use_random:
-            workname = date + 'retrain_subset_%d'%args.col_count + '_' + 'random' 
+            workname = date + '2024_retrain_subset_transformer_sex_%d'%args.col_count + '_' + 'random' 
         elif args.use_reverse:
-            workname = date + 'retrain_subset_%d'%args.col_count + '_' + 'reverse' 
+            workname = date + '2024_retrain_subset_transformer_sex_%d'%args.col_count + '_' + 'reverse' 
         else: 
-            workname = date + 'retrain_subset_%d'%args.col_count 
+            workname = date + '2024_retrain_subset_transformer_sex_%d'%args.col_count 
     
         utils.creat_checkpoint_folder(base + workname, 'params.json', vars(args))
         if not args.use_random: 
@@ -146,11 +146,20 @@ if __name__ == "__main__":
 
         else: 
             print('Randomly zero cols')
-            col_to_zero = random.choices(var_inds, k=args.col_count)
-            with open(base + workname + 'cols_dopped', 'wb') as fp:
-                pickle.dump(col_to_zero, fp)
-            print(col_to_zero)
+            if i >= 1: # load previous level
+                prev_col = col_list[i-1]
+                prev_work = date + '2024_' + 'retrain_subset_transformer_sex_%d'%prev_col + '_' + 'random' 
+                with open(base + prev_work + '/cols_dopped', "rb")as fp:
+                    prev_file= pickle.load(fp)
+                new_col = random.sample(var_inds, k=args.col_count - prev_col)
+                col_to_zero = prev_file + new_col
+            else: 
+                col_to_zero = random.sample(var_inds, k=args.col_count)
+            
+        with open(base + workname + '/cols_dopped', "wb")as fp:
+            pickle.dump(col_to_zero, fp)
 
+        print(col_to_zero)
         rows_to_zero = col_to_zero + [i+1 for i in col_to_zero]
 
         train_head = utils.drop_col(train_head_or, rows_to_zero)
@@ -168,6 +177,7 @@ if __name__ == "__main__":
                                         output_dim=1, dropout_prob=args.dropout, idrop=args.idrop)
 
         elif args.model_name == 'Transformer':
+            print("Training transformer")
             model = models.Trans_encoder(feature_dim=input_dim, d_model=args.d_model, \
                     nhead=args.n_head, d_hid=args.dim_ff_mul * args.d_model, \
                     nlayers=args.num_enc_layer, out_dim=1, dropout=args.dropout)
@@ -191,7 +201,7 @@ if __name__ == "__main__":
         trainval_ids = train_id + dev_id
 
         for c_fold, (train_index, test_index) in enumerate(kf.split(trainval_head)):
-            if c_fold == 0: 
+            if c_fold == 5: 
                 best_loss = 1e4
                 patience = 0
                 if c_fold >= 1:
