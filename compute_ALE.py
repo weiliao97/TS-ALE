@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     # model path 
     parser.add_argument("--model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/0125_mimic_TCNsepsis_3_256_ks3/fold0_best_loss.pt')
-    parser.add_argument("--fc_model_path", type=str, default='0128_mimic_TCN_FC_Ethnicity/fold0_best_loss.pt')
+    parser.add_argument("--fc_model_path", type=str, default='0127_mimic_TCN_FC_Gender/fold0_best_loss.pt') #0128_mimic_TCN_FC_Ethnicity
   
 
     args = parser.parse_args()
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     # severe_liver_disease 1189 metastatic_solid_tumor 1749 aids 133
     # ethnicity_AMERICAN INDIAN 46 ethnicity_ASIAN 791 ethnicity_BLACK 2359 ethnicity_HISPANIC/LATINO 919 ethnicity_OTHER 4547 ethnicity_WHITE 18474
     args.bucket_size = bucket_sizes[args.sens_ind]
-    workname = today_date + '_' + args.database + '_' + target_name[args.sens_ind]
+    workname = today_date + '2024_' + args.database + '_random_' + target_name[args.sens_ind]
     utils.creat_checkpoint_folder('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname, 'params.json', arg_dict)
     train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', target_index[args.sens_ind])
     dev_head, dev_sofa, dev_id, dev_target =  utils.crop_data_target(dev_vital , mimic_target, mimic_static, 'dev', target_index[args.sens_ind])
