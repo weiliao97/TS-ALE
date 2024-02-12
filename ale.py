@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import torch
+import random 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -34,6 +35,8 @@ def data_piece(train_set_rep, index, record_flag):
     # if index<=162 else 0
     for record in train_set_rep:
         true_record = np.where(record[index+offset, :] == record_flag)[0]
+        cnts = len(true_record)
+        true_record = random.sample(range(record.shape[1]), cnts)
         if len(true_record) >= 1:
             for rec_ind in true_record:
                 train_set_piece.append(record[:, :rec_ind+1])
