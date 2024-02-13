@@ -1,6 +1,7 @@
 import os 
 import json 
 import torch 
+import copy 
 from torch.autograd import Variable
 import numpy as np 
 import pandas as pd 
@@ -480,13 +481,14 @@ def get_auc_ci(y_true, y_pred,  n_bootstraps = 1000, rng_seed = 42):
     return confidence_lower, confidence_upper
 
 
-def zero_col(data_head, cols):
+def zero_col(data_head_or, cols):
 
+    data_head = copy.deepcopy(data_head_or)
     for i in range(len(data_head)):
         array = data_head[i]
         for row in cols:
             array[row] = 0
-    return
+    return data_head
 
 def drop_col(data_head, cols):
     data_reduce = [d[~np.isin(np.arange(d.shape[0]), cols), :] for d in data_head]
