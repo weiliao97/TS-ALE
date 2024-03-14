@@ -180,14 +180,14 @@ if __name__ == "__main__":
         model.to(device)
         model.eval()
         model.load_state_dict(torch.load(args.model_path))
-        fc_model = models.FCNet(num_inputs=args.hidden_dim, num_channels=args.read_channels, \
+        fc_model = models.FCNet_l(num_inputs=args.hidden_dim, num_channels=args.read_channels, \
                                 dropout=args.read_drop, reluslope=args.read_reluslope, \
                                 output_class=args.output_classes)
         fc_model.to(device)
         fc_model_path = '/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + args.fc_model_path
         fc_model.load_state_dict(torch.load(fc_model_path))
         fc_model.eval()
-        model_c = models.Combined_model_t(model, fc_model)    
+        model_c = models.Combined_model_l(model, fc_model)    
     else: 
         raise ValueError('Model type not supported')
 

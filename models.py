@@ -102,6 +102,30 @@ class FCNet(nn.Module):
         x = self.FC(x)
         # (6, 24, num_classes)
         return x
+        
+class FCNet_l(nn.Module):
+    def __init__(self, num_inputs, num_channels, dropout, reluslope, output_class):
+        super(FCNet_l, self).__init__()
+        self.num_inputs = num_inputs # 256 for Transformer 
+        # num_channels [128]
+        layers = []
+        for i in range(len(num_channels) ):
+            composite_in = self.num_inputs if i == 0 else num_channels[i-1]
+            layers += [nn.Linear(composite_in, num_channels[i])]
+            layers += [nn.LeakyReLU(reluslope)]
+            layers += [nn.Dropout(dropout)]
+
+        layers += [nn.Linear(num_channels[-1], output_class)]
+
+        self.FC = nn.Sequential(*layers)
+
+    def forward(self, x):
+        # x is (6, 256, 24) or (6, 256, 40) 
+        # x = x.contiguous().transpose(1, 2)
+        # (6, 24, 256)
+        x = self.FC(x)
+        # (6, 24, num_classes)
+        return x
 
 class Chomp1d(nn.Module):
     def __init__(self, chomp_size):

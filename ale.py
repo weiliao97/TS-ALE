@@ -112,8 +112,8 @@ def get_1d_ale(args, model, test_head, index, bins, monte_carlo_ratio, monte_car
                 for offset in range(2):
                     mod_train_set = piece.copy()
                     mod_train_set[:, index, -1] = quantiles[indices + offset]
-                    x_lengths = torch.LongTensor([piece.shape[-1]]*piece.shape[0]).to(device)
-                    predictions.append(model(torch.FloatTensor(mod_train_set).to(device), x_lengths))
+                    x_lengths = torch.LongTensor([piece.shape[-1]]*piece.shape[0])
+                    predictions.append(model(torch.FloatTensor(mod_train_set).to(device).transpose(1, 2), x_lengths))
             # The individual effects.
             # (139, 60, 1) diffrent indices  (139) # (bs, 2)
             effects = np.subtract(predictions[1].cpu().detach().numpy(), predictions[0].cpu().detach().numpy())
