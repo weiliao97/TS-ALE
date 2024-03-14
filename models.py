@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn.utils import weight_norm
 from torch.autograd import Variable
 import math
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 class Combined_model(nn.Module):
@@ -51,6 +52,32 @@ class Combined_model_t(nn.Module):
         # [False, False, False, False, False]])
 
         return mask
+
+class Combined_model_l(nn.Module):
+    def __init__(self, RNN, FC):
+        super(Combined_model_l, self).__init__()
+        self.rnn = RNN.rnn
+        self.FC = FC
+        self.idrop = RNN.idrop
+        self.lockdrop = RNN.lockdrop
+        # self.classifier = nn.Linear(4, 2)
+
+    def forward(self, td_input, td_lengths):
+        # td should be (4, 40, 200)
+        # td_inpus is (4, 200, 40), length is [32, 34, 38, 40]
+        # h0 = torch.zeros(self.layer_dim, td_input.size(0), self.hidden_dim).requires_grad_()
+        if self.idrop >0: 
+            td_input = self.lockdrop(td_input, self.idrop)
+        packed_td = pack_padded_sequence(td_input, td_lengths, batch_first=True, enforce_sorted=False)
+        out, (hn, cn) = self.rnn(packed_td)
+        # padded out shoudl be (4, 40, hidden_dim)
+        padded_out, _ = pad_packed_sequence(out, batch_first=True)
+        # padded_out = padded_out[:, -1, :]
+        # final output is (4, 40, output_classes)
+        padded_out = self.FC(padded_out)
+        x = torch.mean(padded_out, dim=1) # (bs, )
+        x = nn.Softmax(dim=-1)(x)
+        return x
 
 class FCNet(nn.Module):
     def __init__(self, num_inputs, num_channels, dropout, reluslope, output_class):
@@ -223,3 +250,69 @@ class Trans_encoder(nn.Module):
         # [False, False, False, False, False]])
 
         return mask
+
+# RNN 
+class LockedDropout(nn.Module):
+    '''
+    Dropout that is consistent on the sequence dimension.
+    '''
+    def forward(self, x, dropout=0.5):
+        if not self.training:
+            return x
+        m = x.data.new(1, x.size(1), x.size(2)).bernoulli_(1 - dropout)
+        mask = Variable(m, requires_grad=False) / (1 - dropout)
+        mask = mask/torch.max(mask)
+        mask = mask.expand_as(x)
+        return mask * x
+
+class RecurrentModel(nn.Module):
+    '''
+    Recurrent model for time series data.
+    '''
+    def __init__(self, cell='RNN', input_dim=200, hidden_dim=10, layer_dim=3, output_dim=2, dropout_prob=0.2, idrop=0, activation='tanh'):
+        super(RecurrentModel, self).__init__()
+
+        self.input_dim = input_dim 
+        self.hidden_dim = hidden_dim
+        self.layer_dim = layer_dim
+        self.dropout_prob = dropout_prob
+        self.output_dim = output_dim
+        self.cell = cell
+        self.nonlinearity = activation
+        self.idrop = idrop 
+
+        # Defining the number of layers and the nodes in each layer
+        if isinstance(cell, str):
+            if self.cell.upper() == 'RNN':
+                self.rnn = nn.RNN(self.input_dim, self.hidden_dim, self.layer_dim, batch_first=True, dropout=self.dropout_prob, nonlinearity=self.nonlinearity)
+            elif self.cell.upper() == 'LSTM':
+                self.rnn = nn.LSTM(self.input_dim, self.hidden_dim, self.layer_dim, batch_first=True, dropout=self.dropout_prob)
+            elif self.cell.upper() == 'GRU':
+                self.rnn = nn.GRU(self.input_dim, self.hidden_dim, self.layer_dim, batch_first=True, dropout=self.dropout_prob)
+            else:
+                raise Exception('Only GRU, LSTM and RNN are supported as cells.')
+
+        # # encode time-incariant layer 
+        self.lockdrop = LockedDropout()
+        # Fully connected layer
+        self.fc = nn.Linear(self.hidden_dim, self.output_dim)
+
+    def forward(self, td_input, td_lengths):
+        # td should be (4, 40, 200)
+        # td_inpus is (4, 200, 40), length is [32, 34, 38, 40]
+        # h0 = torch.zeros(self.layer_dim, td_input.size(0), self.hidden_dim).requires_grad_()
+        if self.idrop >0: 
+            td_input = self.lockdrop(td_input, self.idrop)
+        packed_td = pack_padded_sequence(td_input, td_lengths, batch_first=True, enforce_sorted=False)
+
+        if self.cell.upper() == 'LSTM':
+            # c0 = torch.zeros(self.layer_dim, td_input.size(0), self.hidden_dim).requires_grad_()
+            out, (hn, cn) = self.rnn(packed_td)
+        else:
+            out, h0 = self.rnn(packed_td)
+        # padded out shoudl be (4, 40, hidden_dim)
+        padded_out, _ = pad_packed_sequence(out, batch_first=True)
+        # padded_out = padded_out[:, -1, :]
+        # final output is (4, 40, output_classes)
+        padded_out = self.fc(padded_out)
+        return padded_out

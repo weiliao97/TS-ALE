@@ -54,7 +54,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_sepsis3", action = 'store_true', default= False, help="Whethe only use sepsis3 subset")
     parser.add_argument("--input_dim", type = int, default= 200, help="Dimension of variables used to train the extarction model")
     parser.add_argument("--bucket_size", type=int, default=300, help="path to the dataset")
-    parser.add_argument("--model", type=str, default='transformer', choices=['tcn', 'transformer'], help="Model type")
+    parser.add_argument("--model", type=str, default='rnn', choices=['tcn', 'transformer', 'rnn'], help="Model type")
     # TCN
     parser.add_argument("--kernel_size", type=int, default=3, help="Dimension of the model")
     parser.add_argument("--dropout", type=float, default=0.2, help="Model dropout")
@@ -67,6 +67,11 @@ if __name__ == "__main__":
     parser.add_argument("--n_head", type=int, default=8, help="Attention head of the model")
     parser.add_argument("--dim_ff_mul", type=int, default=4, help="Dimension of the feedforward model")
     parser.add_argument("--num_enc_layer", type=int, default=2, help="Number of encoding layers")
+    # LSTM 
+    parser.add_argument("--rnn_type", type=str, default='lstm', choices=['rnn', 'lstm', 'gru'])
+    parser.add_argument("--hidden_dim", type=int, default=256, help="RNN hidden dim")
+    parser.add_argument("--layer_dim", type=int, default=3, help="RNN layer dim")
+    parser.add_argument("--idrop", type=float, default=0, help="RNN drop out in the very beginning")
 
     # FC 
     parser.add_argument("--read_drop", type=float, default=0.2, help="Model dropout in FC read model")
@@ -78,9 +83,9 @@ if __name__ == "__main__":
 
 
     # model path 
-    parser.add_argument("--model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/0125_mimic_Transformertransformer/fold5_best_loss.pt')
-    parser.add_argument("--fc_model_path", type=str, default='0225_mimic_trans_sepsis3_sofa_Transformer_FC_Gender/fold5_best_loss.pt')
-  
+    parser.add_argument("--model_path", type=str, default='/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/checkpoints/')
+    parser.add_argument("--fc_model_path", type=str, default='')
+    # transformer: 0125_mimic_Transformertransformer/fold5_best_loss.pt, 0225_mimic_trans_sepsis3_sofa_Transformer_FC_Gender/fold5_best_loss.pt
 
     args = parser.parse_args()
     arg_dict = vars(args)
@@ -121,7 +126,7 @@ if __name__ == "__main__":
     # severe_liver_disease 1189 metastatic_solid_tumor 1749 aids 133
     # ethnicity_AMERICAN INDIAN 46 ethnicity_ASIAN 791 ethnicity_BLACK 2359 ethnicity_HISPANIC/LATINO 919 ethnicity_OTHER 4547 ethnicity_WHITE 18474
     args.bucket_size = bucket_sizes[args.sens_ind]
-    workname = today_date + '2024_' + args.database + '_transformer_' + target_name[args.sens_ind]
+    workname = today_date + '2024_' + args.database + '_lstm_' + target_name[args.sens_ind]
     utils.creat_checkpoint_folder('/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + workname, 'params.json', arg_dict)
     train_head, train_sofa, train_id, train_target =  utils.crop_data_target(train_vital, mimic_target, mimic_static, 'train', target_index[args.sens_ind])
     dev_head, dev_sofa, dev_id, dev_target =  utils.crop_data_target(dev_vital , mimic_target, mimic_static, 'dev', target_index[args.sens_ind])
@@ -168,6 +173,21 @@ if __name__ == "__main__":
         fc_model.load_state_dict(torch.load(fc_model_path))
         fc_model.eval()
         model_c = models.Combined_model_t(model, fc_model)
+    elif args.model == 'rnn': 
+        print("Model type: LSTM")
+        model = models.RecurrentModel(cell='LSTM', input_dim = args.input_dim, hidden_dim=args.hidden_dim, layer_dim=args.layer_dim, \
+                                        output_dim=1, dropout_prob=args.dropout, idrop=args.idrop)
+        model.to(device)
+        model.eval()
+        model.load_state_dict(torch.load(args.model_path))
+        fc_model = models.FCNet(num_inputs=args.hidden_dim, num_channels=args.read_channels, \
+                                dropout=args.read_drop, reluslope=args.read_reluslope, \
+                                output_class=args.output_classes)
+        fc_model.to(device)
+        fc_model_path = '/content/drive/My Drive/ColabNotebooks/MIMIC/TCN/Read/checkpoints/' + args.fc_model_path
+        fc_model.load_state_dict(torch.load(fc_model_path))
+        fc_model.eval()
+        model_c = models.Combined_model_t(model, fc_model)    
     else: 
         raise ValueError('Model type not supported')
 
