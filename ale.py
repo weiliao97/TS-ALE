@@ -108,6 +108,12 @@ def get_1d_ale(args, model, test_head, index, bins, monte_carlo_ratio, monte_car
                     tgt_mask = model.get_tgt_mask(mod_train_set.shape[-1]).to(device)
                     key_mask = torch.zeros((mod_train_set.shape[0], mod_train_set.shape[-1]), dtype=torch.bool).to(device)
                     predictions.append(model(torch.FloatTensor(mod_train_set).to(device), tgt_mask, key_mask))
+            elif args.model == 'rnn':
+                for offset in range(2):
+                    mod_train_set = piece.copy()
+                    mod_train_set[:, index, -1] = quantiles[indices + offset]
+                    x_lengths = torch.LongTensor([piece.shape[-1]]*piece.shape[0]).to(device)
+                    predictions.append(model(torch.FloatTensor(mod_train_set).to(device), x_lengths))
             # The individual effects.
             # (139, 60, 1) diffrent indices  (139) # (bs, 2)
             effects = np.subtract(predictions[1].cpu().detach().numpy(), predictions[0].cpu().detach().numpy())
