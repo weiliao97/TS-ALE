@@ -200,6 +200,7 @@ if __name__ == "__main__":
     keys_sim = [i[0] for i in keys]
     ale_df = pd.DataFrame(index=keys_sim)
     ale_df['ale'] = ''
+    # 132, 164, 166, 168
     for var_ind in var_inds:
         ind = var_ind//2 if var_ind <= 108 else (var_ind-6)//2
         key = keys_sim[ind]
